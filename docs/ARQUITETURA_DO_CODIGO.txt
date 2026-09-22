@@ -1,0 +1,231 @@
+========================================================================
+PROGMASTER — ARQUITETURA DO CÓDIGO
+========================================================================
+Complemento do sistema Playlist (Windows, C++, Win32). Este documento
+descreve a organização arquitetural e as fichas das classes, na forma em
+que ficaram após a refatoração (21/09/2026). Comportamento e camadas
+funcionais foram preservados intencionalmente (ver CONTEXTO_PROJETO, seção P).
+
+========================================================================
+1. VISÃO GERAL — LAYERS
+========================================================================
+O código é organizado em cinco camadas. Dependências seguem uma direção
+única (camadas superiores usam inferiores; nunca o contrário):
+
+   ui/ ............ apresentação (janelas, controles, orquestração)
+        -> documents, playlist, core
+   documents/ ..... coordenação dos documentos editáveis (fachada)
+        -> playlist, core
+   playlist/ ...... domínio da instalação do Playlist (paths, ini, xml)
+        -> core, models
+   models/ ........ estruturas de dados puras (sem lógica)
+   core/ .......... infraestrutura (settings, log, io, histórico, fs)
+   main.cpp ....... ponto de entrada (wWinMain -> Application)
+
+  +---------------------------------------------------------------------+
+  | main.cpp                                                             |
+  |   -> Application (composição + loop de mensagens)                    |
+  +---------------------------------------------------------------------+
+                 |
+                 v
+  +-----------------------------------------------+
+  | ui::MainWindow (orquestra tudo, só apresenta)  |
+  |   +-- IniEditorView  +-- CodesPageView         |
+  |   +-- EditorDocumentController (fachada)        |
+  |   \-- LocatePlaylistDialog (use)                |
+  +------------------------+----------------------+
+                           |
+          +----------------+----------------+
+          |                                 |
+          v                                 v
+  +-----------------------+        +-------------------------+
+  | documents::           |        | playlist::PlaylistIni   |
+  | EditorDocumentController|       | (3x: ini/mapa/grades)  |
+  |  + 3x PlaylistIni      |        +-------------------------+
+  |  + PlaylistInstallation|                 |
+  +-----------------------+                  v
+          |                        +------------------------+
+          v                        | core::TextFileIO       |
+   +--------------------------+    | core::FileSystem       |
+   | playlist::PlaylistInstallation| core::Log                |
+   | playlist::PlaylistLocator |    +------------------------+
+   | playlist::FoldersXml      |
+   +--------------------------+
+            |            |
+            v            v
+     core::FileSystem   models::FolderEntry
+
+  Diagrama sintético de responsabilidades (padrões aplicados):
+  +-----------------+                 +------------------+
+  | MainWindow      |                 | IniEditorView    |
+  +---+-------------+                 +---+--------------+
+      |                                   |
+      v                                   v
+  +----------------------+            +-----------------+
+  | EditorDocumentController (Fachada) | DocumentHistory |
+  +----------------------+            | (Memento)       |
+      |                                +-----------------+
+      v
+  PlaylistIni (playlist.ini, mapa.txt, grade.txt)
+
+========================================================================
+2. FICHAS DAS CLASSES
+========================================================================
+Formato: Nome | Arquivo | Camada | Responsabilidade | Não faz | Depende |
+Usado por.
+
+------------------------------------------------------------------ core --
+Application | core/Application.h/.cpp | core | Compõe os componentes,
+inicializa tudo uma vez (Settings, Log, PlaylistLocator, MainWindow) e roda
+o loop de mensagens. | Não contém regra de domínio. | Settings, Log,
+PlaylistLocator, MainWindow | main.cpp.
+
+Settings | core/Settings.h/.cpp | core | Config em %APPDATA%\ProgMaster\
+config.txt ("Chave=valor"), com migração automática do legado
+%APPDATA%\PlaylistComplementar. | Não escreve UI. | TextFileIO | Application,
+PlaylistLocator, Log.
+
+Log | core/Log.h/.cpp | core | Registro técnico em
+%APPDATA%\ProgMaster\log.txt (linhas datadas, UTF-8). Falhas de escrita não
+derrubam o programa. | Não decide recomendações de UX. | Settings | quase
+todas as camadas.
+
+TextFileIO | core/TextFileIO.h/.cpp | core | Leitura/gravação de texto
+preservando bytes e codificação (UTF-8 c/ e s/ BOM, UTF-16 LE/BE, ANSI);
+gravação atômica via arquivo temporário + MoveFileExW. | Não interpreta o
+conteúdo dos arquivos do Playlist. | (Win32) | PlaylistIni, FoldersXml,
+Settings.
+
+DocumentHistory | core/DocumentHistory.h/.cpp | core | Histórico de versões
+de um texto p/ undo/redo (padrão Memento; limite 100). | Não conhece
+janelas/controles. | (STL) | IniEditorView.
+
+FileSystem | core/FileSystem.h/.cpp | core | Semântica única de existência
+de caminho no disco (pathExists / isFile). | Não interpreta conteúdo. |
+(Win32/STL) | PlaylistLocator, PlaylistIni, PlaylistInstallation.
+
+------------------------------------------------------------ documents --
+EditorDocumentController | documents/EditorDocumentController.h/.cpp |
+documents | Fachada: identifica o documento em edição (playlist.ini,
+mapa.txt, grade.txt), resolve caminho (busca flexível) e nome exibido,
+carrega e salva conteúdo preservando codificação, prepara criação de
+arquivo/pasta. | Não exibe janelas nem mensagens; erros retornam em
+userMessage/technicalError para a camada de apresentação decidir. Estado
+"sujo"/histórico ficam no IniEditorView. | PlaylistInstallation (ref.),
+PlaylistIni (3x, owns), Log | MainWindow.
+
+-------------------------------------------------------------- models --
+FolderEntry | models/FolderEntry.h/.cpp | models | Estrutura pura de um
+registro do folders.xml (dbfId, title, id, type, target, folder). | Sem
+lógica/comportamento. | (STL) | FoldersXml, CodesPageView.
+
+------------------------------------------------------------ playlist --
+PlaylistLocator | playlist/PlaylistLocator.h/.cpp | playlist | Única
+autoridade sobre "qual Playlist.exe o programa usa": valida, persiste no
+config e expõe o caminho. Antes de pedir o caminho, pode descobri-lo
+sozinho: tryAutoLocateNextToSelf() procura um Playlist.exe na MESMA pasta
+do próprio ProgMaster (GetModuleFileNameW) e, se achar, salva-o
+(README: quem mantém os dois executáveis juntos não configura nada).
+| Não descobre os demais arquivos da instalação (isso é da
+PlaylistInstallation). | Settings, Log, FileSystem | Application,
+MainWindow, LocatePlaylistDialog.
+
+PlaylistInstallation | playlist/PlaylistInstallation.h/.cpp | playlist |
+Deriva a estrutura da instalação a partir do Caminho do exe (raiz detectada
+por pasta "pgm"; busca flexível de playlist.ini, folders.xml,
+ConfigManager.exe, mapa.txt, grade.txt via firstExisting(candidatos,
+fallback)). | Não lê o conteúdo dos arquivos. | FileSystem | MainWindow,
+EditorDocumentController.
+
+PlaylistIni | playlist/PlaylistIni.h/.cpp | playlist | Serviço de texto
+puro de um arquivo editável: setPath/setDisplayName/hasPath/exists,
+load e save preservando a codificação detectada. | Não interpreta blocos
+do Playlist. | TextFileIO, FileSystem, Log | EditorDocumentController.
+
+FoldersXml | playlist/FoldersXml.h/.cpp | playlist | Parser somente
+leitura do folders.xml: extrai FolderEntry (campos por texto de filhos OU
+atributos; case-insensitive; namespace; aninhamento; self-closing) e o
+fallback de pareamento DBFId/Title. Percorre o documento com o visitor
+walkTags (extração que elimina o laço duplicado). | Não grava; não inventa
+DBFId. | TextFileIO, FileSystem, Log, FolderEntry | MainWindow.
+
+------------------------------------------------------------------- ui --
+MainWindow | ui/MainWindow.h/.cpp | ui | Janela principal: cria menu, abas,
+layout, status; recebe comandos; decide APRESENTAÇÃO de cada desfecho de
+documento (confirmações "alterações não salvas", mensagens, status);
+coordena o ciclo de vida da instalação e da guia Códigos: na inicialização
+decide se usa o caminho salvo, a descoberta automática (PlaylistLocator) ou
+o diálogo de localização (ver D5). | Não contém
+regra de domínio; a gestão de documentos é delegada ao
+EditorDocumentController e o histórico ao IniEditorView. | PlaylistLocator,
+Settings, PlaylistInstallation (owns), EditorDocumentController (owns),
+IniEditorView (owns), CodesPageView (owns), LocatePlaylistDialog,
+FoldersXml, FolderEntry, Log, Win32Ids | Application.
+
+IniEditorView | ui/IniEditorView.h/.cpp | ui | Aba "Editor": caixa de
+edição multiline, barra de ferramentas (salvar/voltar/prosseguir), marca
+de sujeira (dirty), navegação undo/redo sobre DocumentHistory. | Não lê/
+grava disco nem resolve caminhos. | DocumentHistory, Win32Ids | MainWindow.
+
+CodesPageView | ui/CodesPageView.h/.cpp | ui | Aba "Códigos": ListView em
+modo report (Código|Nome), resumo com totais (com/sem DBFId, duplicados) e
+rodapé com o caminho do folders.xml. | Não lê o XML (recebe FolderEntry já
+parseados). | Win32Ids, FolderEntry | MainWindow.
+
+LocatePlaylistDialog | ui/LocatePlaylistDialog.h/.cpp | ui | Janela modal
+de localização do Playlist.exe (GetOpenFileNameW + validação). Use
+estático show(). | Não persiste por conta própria (chama PlaylistLocator).
+| PlaylistLocator, Win32Ids | MainWindow.
+
+Win32Ids | ui/Win32Ids.h | ui | menuFromId(id): conversão ID->HMENU p/
+CreateWindowExW. Header-only, escopo intencionalmente mínimo. | Nada além
+disso. | (Win32) | MainWindow, IniEditorView, CodesPageView,
+LocatePlaylistDialog.
+
+========================================================================
+3. REGRAS ARQUITETURAIS
+========================================================================
+R1. Direção de dependência única: ui -> documents -> playlist -> core;
+    models é uma folha. Nenhuma dependência circular entre camadas.
+R2. UI não implementa regra de domínio. Confirmações de janela e textos
+    exibidos são apresentação; decisões sobre o que LER/GRAVAR vivem nas
+    camadas inferiores (retornando mensagens em vez de abrir MessageBox).
+R3. Os documentos editáveis só são tocados pela camada de apresentação via
+    EditorDocumentController (fachada); ninguém instancia PlaylistIni fora
+    dele.
+R4. Acesso a disco (existência) passa por core\FileSystem; leitura/gravação
+    de texto passa por core\TextFileIO. Nada abre arquivos "na mão".
+R5. O estado de edição (dirty, histórico) é do IniEditorView; o controller
+    é apátrido em relação à "sujeira".
+R6. Padrões só quando houver problema real: hoje estão explícitos o
+    Facade (EditorDocumentController), o Memento (DocumentHistory) e o
+    Visitor (walkTags no parser). Não forçar Command/Strategy/Factory.
+R7. Não criar "Utils/Helpers" genéricos: Win32Ids existe para UM membro e
+    jamais deve virar depósito; FileSystem é restrito ao tema "existência".
+R8. Novo código: C++17, /W4 sem warnings, /utf-8, CRT estática (/MT),
+    comentário de classe na forma "o que faz / o que NÃO faz / de quem
+    depende".
+
+========================================================================
+4. REGISTRO DE DECISÕES (DECISION LOG)
+========================================================================
+D1. JUCE: NÃO usado. Meta do produto é um executável único sem
+    dependências; a UI Win32 é pequena e delimita bem as responsabilidades.
+    Revisitar apenas se surgir demanda real (ex.: desejar temas/áudio do
+    JUCE, o que hoje não existe).
+D2. TextFileIO: NÃO dividido. É um único conceito coeso; os helpers
+    privados são implementação. Dividir seria apenas por "tamanho".
+D3. Histórico de undo/redo próprio (DocumentHistory) em vez do Desfazer do
+    EDIT do Windows (que só tem 1 nível) — decisão anterior, mantida.
+D4. Parser do folders.xml manual (sem biblioteca XML), tolerante a
+    variações reais de instalação (case, namespace, atributos) — decisão
+    anterior, mantida.
+D5. Descoberta automática do Playlist.exe (21/09/2026): no início, se não
+    houver caminho válido salvo, o software verifica primeiro se já existe
+    um Playlist.exe na MESMA pasta do ProgMaster (GetModuleFileNameW +
+    validação normal de "Playlist.exe"); se achar, usa e persiste esse
+    caminho sem perguntar. Se não achar, mantém o comportamento antigo
+    (diálogo de localização). A lógica vive no PlaylistLocator (camada
+    playlist), mantendo a regra R2: a janela só decide se mostra ou não o
+    pedido ao usuário. Um caminho salvo válido tem precedência sobre a
+    descoberta (respeita a escolha explícita do usuário).
