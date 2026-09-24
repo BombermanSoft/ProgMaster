@@ -35,15 +35,17 @@ public:
     void resized() override
     {
         const int margin = 10;
-        const int bTop = 30;
         m_pathEditor.setBounds(margin, margin, getWidth() - 2 * margin - 110,
                                30);
         m_browseButton.setBounds(m_pathEditor.getRight() + 8, margin, 102, 30);
 
+        // Confirmar/Cancelar ficam numa ROW PRÓPRIA no rodapé (antes ficavam
+        // na mesma faixa vertical do botão "Procurar...", sobrepondo-o).
         const int bw = 100;
         const int gap = 8;
-        m_confirmButton.setBounds(getWidth() - margin - bw, bTop, bw, 30);
-        m_cancelButton.setBounds(m_confirmButton.getX() - gap - bw, bTop, bw, 30);
+        const int y = getHeight() - margin - 30;
+        m_confirmButton.setBounds(getWidth() - margin - bw, y, bw, 30);
+        m_cancelButton.setBounds(m_confirmButton.getX() - gap - bw, y, bw, 30);
     }
 
     std::wstring chosenPath() const { return wstr(m_pathEditor.getText()); }

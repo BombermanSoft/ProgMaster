@@ -7,6 +7,30 @@
 #include "readconf/ReadingConfiguration.h"
 
 namespace app {
+namespace {
+
+// Converte wstring para string UTF-8 (detalhe técnico do log), sem as
+// perdas avisadas pelo compilador na conversão implícita wchar_t->char.
+std::string toUtf8(const std::wstring& s)
+{
+    std::string out;
+    for (wchar_t ch : s) {
+        const unsigned int c = static_cast<unsigned int>(ch);
+        if (c < 0x80) {
+            out.push_back(static_cast<char>(c));
+        } else if (c < 0x800) {
+            out.push_back(static_cast<char>(0xC0 | (c >> 6)));
+            out.push_back(static_cast<char>(0x80 | (c & 0x3F)));
+        } else {
+            out.push_back(static_cast<char>(0xE0 | (c >> 12)));
+            out.push_back(static_cast<char>(0x80 | ((c >> 6) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | (c & 0x3F)));
+        }
+    }
+    return out;
+}
+
+} // namespace
 
 PlaylistConfigController::PlaylistConfigController(std::filesystem::path playlistIniPath)
     : m_ini(std::move(playlistIniPath))
@@ -155,9 +179,7 @@ bool PlaylistConfigController::save(std::wstring& userMessage,
     const auto validation = readconf::validateForSave(m_doc);
     if (!validation.ok) {
         userMessage = validation.errorMessage;
-        technicalError =
-            "Validação bloqueou a gravação: " + std::string(validation.errorMessage.begin(),
-                                                           validation.errorMessage.end());
+        technicalError = "Validação bloqueou a gravação: " + toUtf8(validation.errorMessage);
         Log::error(technicalError);
         return false;
     }

@@ -1,7 +1,8 @@
 =======================================================================
 CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
 Data: 24/09/2026
-Status: Etapa 2 concluída (build limpo /W4, 110/110 testes, app abre)
+Status: Etapa 2 concluída (build limpo /W4, 116/116 testes, app abre);
+        bug da pasta de programação corrigido (24/09 — ver E.2/C.5)
 =======================================================================
 
 -----------------------------------------------------------------------
@@ -46,9 +47,13 @@ B.2. Implementado (Etapa 2)
   [x] Interface JUCE completa: menus Arquivo/Editar, abas Editor |
       Configuração | Códigos, diálogos modais, mensagens, ComboBox e
       tabelas — src/app/.
-  [x] Leitura dos formatos do playlist.ini — src/readconf/ (110 testes,
+  [x] Leitura dos formatos do playlist.ini — src/readconf/ (116 testes,
       ver J.7): mapeia cada escopo para a linha ARQUIVO esperada e para
-      o token/formato; valida endereço/porta das afiliadas.
+      o token/formato; valida endereço/porta das afiliadas. O
+      reconhecimento é TOLERANTE a variações reais do arquivo: seções com
+      acento ("[RELÓGIO COMERCIAL]" = "RELOGIO"), valores entre aspas
+      ("ARQUIVO=\"Mapas\\Mapa.txt\""), grafia de dias por extenso e
+      tokens %w/%a/%d/%d-%m%Y.
   [x] Guia "Configuração": cartão por escopo com ComboBox do formato,
       status "configurado/não configurado/não reconhecido", arquivos
       esperados (✓/✗ no disco) e botão "+ Adicionar estilo";
@@ -151,7 +156,7 @@ C:\Users\Usuario\Documents\Config-alpha1\
    │  ├─ PlaylistIniDocument.h/.cpp    documento URI em memória (seções)
    │  ├─ PlaylistFileLocator.h/.cpp    localiza arquivos por escopo
    │  ├─ ReadingConfiguration.h/.cpp   interpretação + validadores afiliadas
-   │  └─ tests\RulesTests.cpp          110 testes (sem JUCE)
+   │  └─ tests\RulesTests.cpp          116 testes (sem JUCE)
    ├─ app\                   UI JUCE (Etapa 2)
    │  ├─ ProgMasterApplication.h/.cpp  JUCEApplication + START_JUCE_APPLICATION
    │  ├─ MainWindow.h/.cpp             DocumentWindow + MenuBarModel
@@ -178,9 +183,16 @@ E.2. readconf\PlaylistIniDocument e ReadingConfiguration
   - PlaylistIniDocument: seções do playlist.ini em memória
     (nome, ordem, linhas "Chave=Valor"), capaz de re-serializar o
     arquivo preservando o que não foi alterado.
-  - readScope(doc, escopo, pastaInstalacao) -> ScopeSnapshot:
+  - readScope(doc, escopo, pastaDeProgramacao) -> ScopeSnapshot:
     presente? opção reconhecida? arquivo lido (arquivoAsWritten),
     token match e lista de arquivos esperados (com exists) no disco.
+  - A pasta de programação é a pasta do Playlist.exe (instalação real),
+    NÃO a raiz do drive: se o exe está em C:\Playlist\pgm\Playlist.exe,
+    os arquivos são procurados em C:\Playlist\pgm\Mapas e \Grades
+    (aplicado em MainWindow::refreshFromLocator).
+  - Tolerância a variações reais do arquivo: seções acentuadas
+    ("[RELÓGIO COMERCIAL]" reconhecida como RELOGIO COMERCIAL) e
+    valores entre aspas ("ARQUIVO=\"Mapas\Mapa.txt\"").
   - Validação de afiliadas: endereço prefixado por "=" quando
     convém, porta 1–65535, flags de desabilitado; erros traduzidos
     pelo controlador para mensagens de usuário.
@@ -249,7 +261,7 @@ Estado esperado e verificado: 0 erros, 0 warnings (/W4 no nosso código).
 H. COMO EXECUTAR / TESTAR
 -----------------------------------------------------------------------
   build\ProgMaster_artefacts\Release\ProgMaster.exe
-  build\Release\ProgMasterCoreTests.exe      -> 110/110 ok
+  build\Release\ProgMasterCoreTests.exe      -> 116/116 ok
 
 Na primeira execução, informe onde está o Playlist.exe. O caminho é
 gravado em %APPDATA%\ProgMaster\config.txt.
@@ -263,10 +275,11 @@ CRT estática (/MT). Copiar um único arquivo para distribuir.
 -----------------------------------------------------------------------
 J. TESTES REALIZADOS
 -----------------------------------------------------------------------
-J.7. Etapa 2 — suíte automatizada (24/09/2026): 110/110 PASS.
+J.7. Etapa 2 — suíte automatizada (24/09/2026): 116/116 PASS.
   - FormatRules: mapa escopo->token para os 5 escopos e formatos;
-  - PlaylistIniDocument: parse, re-serialização e preservação de
-    seções não reconhecidas;
+  - PlaylistIniDocument: parse, re-serialização, preservação de
+    seções não reconhecidas e TOLERÂNCIA (seções com acento, valores
+    com aspas) — ver teste testDocumentTolerances;
   - PlaylistFileLocator: localização de arquivos por escopo (incluindo
     relógio semanal com dia da semana);
   - ReadingConfiguration: leitura e interpretação dos escopos;
@@ -293,6 +306,12 @@ K.3. Índice do callback de MessageBoxOptions (0/1/2 p/ Salvar/Descartar/
 K.4. classesScopeCard/AfiliadaRow/AfiliadasCard são amigas de
      ConfiguratorTab (não aninhadas) por quirk do MSVC (ver C.4).
 K.5. JUCE 8.0.15 é baixado no primeiro configure (requer Git e rede).
+K.6. Localização da pasta de programação (24/09/2026): os arquivos
+     Mapas/Grades e Relógios ficam ao lado do Playlist.exe (ex.:
+     C:\Playlist\pgm\Mapas). A leitura agora usa a pasta do exe (ver
+     E.2/E.3); a base da instalação (raiz do drive) é usada apenas
+     para derived classification. Validar em campo se houver
+     instalações com layout divergente.
 
 -----------------------------------------------------------------------
 L. PRÓXIMA ETAPA (A DEFINIR — aguarda especificação do cliente)

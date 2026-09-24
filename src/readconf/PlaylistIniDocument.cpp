@@ -40,6 +40,35 @@ std::wstring toLower(const std::wstring& s)
     return r;
 }
 
+// Remove acentos comuns do português. Usado na NORMALIZAÇÃO de nomes de
+// seção: o arquivo real costuma gravar "RELÓGIO COMERCIAL" (acentuado) e o
+// programa compara pelas grafias sem acento. O texto original não muda
+// (rawSectionName é preservado na serialização).
+wchar_t foldAccent(wchar_t c)
+{
+    static const wchar_t from[] =
+        L"ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöùúûüý";
+    static const wchar_t to[] =
+        L"AAAAAACEEEEIIIINOOOOOUUUUYaaaaaaceeeeiiiinooooouuuuy";
+    const wchar_t* p = from;
+    while (*p != L'\0') {
+        if (*p == c) {
+            return to[p - from];
+        }
+        ++p;
+    }
+    return c;
+}
+
+std::wstring foldAscii(const std::wstring& s)
+{
+    std::wstring r = s;
+    for (wchar_t& c : r) {
+        c = foldAccent(c);
+    }
+    return r;
+}
+
 bool isBlank(const std::wstring& s)
 {
     for (wchar_t c : s) {
@@ -95,6 +124,13 @@ IniLine parseKeyLine(const std::wstring& raw)
     line.rawKey = trim(work.substr(0, eq));
     line.key = toLower(line.rawKey);
     line.value = trim(work.substr(eq + 1));
+    // Tolerância: valores entre aspas ("MAPAS\Mapa.txt") são lidos sem as
+    // aspas. A linha ORIGINAL (raw) é preservada; se a linha for reescrita,
+    // o valor é normalizado sem aspas.
+    if (line.value.size() >= 2 && line.value.front() == L'"' &&
+        line.value.back() == L'"') {
+        line.value = line.value.substr(1, line.value.size() - 2);
+    }
     return line;
 }
 
@@ -160,7 +196,7 @@ void PlaylistIniDocument::parseLine(const std::wstring& raw)
             const std::wstring name = trim(trimmed.substr(1, close - 1));
             if (!name.empty()) {
                 line.kind = IniLineKind::Section;
-                line.sectionName = toLower(name);
+                line.sectionName = normalizedSection(name);
                 line.rawSectionName = name;
                 m_lines.push_back(line);
                 return;
@@ -196,7 +232,10 @@ std::wstring PlaylistIniDocument::text() const
 
 std::wstring PlaylistIniDocument::normalizedSection(const std::wstring& rawName)
 {
-    return toLower(trim(rawName));
+    // Primeiro remove os acentos (fold de ambas as grafias), DEPOIS minúscula:
+    // no locale "C" o towlower não abaixa "Ó" por exemplo, e o fold deixaria
+    // "O" maiúsculo, divergindo da consulta.
+    return toLower(foldAscii(trim(rawName)));
 }
 
 int PlaylistIniDocument::findSectionLine(const std::wstring& normalizedName) const

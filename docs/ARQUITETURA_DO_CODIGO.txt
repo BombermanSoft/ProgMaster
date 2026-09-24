@@ -5,7 +5,7 @@ Data: 24/09/2026
 
 RESUMO: núcleo em C++ puro (std::wstring + std::filesystem) separado da
 camada de interface JUCE. Toda a regra de formato vive em src/readconf,
-testada sem UI (110 testes). A UI (src/app) apenas "fonia" o núcleo.
+testada sem UI (116 testes). A UI (src/app) apenas "fonia" o núcleo.
 
 -----------------------------------------------------------------------
 1. VISÃO GERAL / CAMADAS
@@ -50,7 +50,10 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
 
 2.3. src/readconf (namespace readconf)
   - FormatRules            escopo -> token de arquivo e formatos válidos
-  - PlaylistIniDocument    seções do ini em memória + re-serialização
+  - PlaylistIniDocument    seções do ini em memória + re-serialização.
+    Normalização tolerante: remove acentos (fold) ANTES de minúscular
+    (o towlower do locale "C" não minúscula "Ó"); seções acentuadas
+    ("[RELÓGIO...]" == "RELOGIO") e valores entre aspas são aceitos.
   - PlaylistFileLocator    resolve o arquivo esperado por escopo
     (relógio semanal: Relogio<dia>.txt)
   - ReadingConfiguration   interpretação dos escopos e validadores
@@ -137,7 +140,11 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
   ProgMasterApplication -> Settings, Log, PlaylistLocator, MainWindow
   MainWindow            -> PlaylistConfigController (dono),
                            EditorTab, ConfiguratorTab, CodesTab,
-                           LocatePlaylistDialog, PlaylistInstallation
+                           LocatePlaylistDialog, PlaylistInstallation.
+                           refreshFromLocator define a pasta DE
+                           PROGRAMAÇÃO = pasta do Playlist.exe (ex.:
+                           C:\Playlist\pgm) e passa ao controller via
+                           setInstallationFolder.
   ConfiguratorTab       -> readconf (ReadScope/Snapshots),
                            app::ScopeCard/AfiliadasCard (friend)
   CodesTab              -> FoldersXml, PlaylistInstallation
@@ -162,7 +169,7 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
   cmake -S . -B build -G "Visual Studio 17 2022" -A x64
   cmake --build build --config Release --target ProgMaster ProgMasterCoreTests
   -> 0 erros 0 warnings (/W4); ProgMaster.exe em build\ProgMaster_artefacts\Release\
-  -> ProgMasterCoreTests.exe 110/110 PASS  (build\Release\)
+  -> ProgMasterCoreTests.exe 116/116 PASS  (build\Release\)
 
   Observações: JUCE baixado por FetchContent (GIT_TAG 8.0.15 shallow);
   CMake LANGUAGES C CXX; /utf-8; CRT estática (/MT); targets próprios

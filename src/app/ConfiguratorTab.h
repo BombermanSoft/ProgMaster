@@ -63,8 +63,7 @@ private:
     void refreshScopeCard(readconf::ConfigScope scope);
     // Reconstroi apenas o cartão de afiliadas (linhas novas/preenchidas).
     void refreshAfiliadasOnly();
-    // Altura preferida de um cartão para o layout vertical.
-    static int preferredScopeCardHeight();
+    // Altura preferida do cartão de afiliadas (para o layout vertical).
     int preferredAfiliadasHeight() const;
 
     PlaylistConfigController& m_controller;

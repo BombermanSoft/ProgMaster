@@ -226,15 +226,20 @@ void MainWindow::refreshFromLocator()
     const std::wstring exe = m_locator.getPlaylistExePath();
     m_installation.setExecutablePath(std::filesystem::path(exe));
 
-    const std::filesystem::path root = m_installation.installFolder();
-    m_controller.setInstallationFolder(root);
+    // As pastas de programação (Mapas/Grades/Relógios) ficam AO LADO do
+    // Playlist.exe (ex.: C:\Playlist\pgm\Mapas), e não na raiz da instalação
+    // (C:\Playlist). Por isso a pasta de busca dos arquivos é a pasta do exe.
+    m_controller.setInstallationFolder(m_installation.executablePath().parent_path());
     m_controller.setPlaylistIniPath(m_installation.playlistIniPath());
 
     m_controller.load();
     m_configTab.refreshFromController();
     m_codesTab.reload();
 
-    std::wstring status = L"Instalação (Playlist.exe): " + exe;
+    std::wstring status = L"Playlist.exe: " + exe;
+    if (!m_controller.path().empty()) {
+        status += L"   |   playlist.ini: " + m_controller.path().wstring();
+    }
     if (!m_controller.lastLoadMessage().empty()) {
         status += L"   |   " + m_controller.lastLoadMessage();
     }

@@ -309,6 +309,40 @@ void testDocumentEolPreservation()
     CHECK_EQ(docCr.text(), crText);
 }
 
+void testDocumentTolerances()
+{
+    // Seção com acento (RELÓGIO -> RELOGIO) e valores entre aspas: o arquivo
+    // real do Playlist costuma usar essas formas; o programa deve reconhecer.
+    PlaylistIniDocument doc;
+    doc.setText(
+        L"[BLOCO COMERCIAL]\nFORMATO=AUTO\n"
+        L"[REL\u00d3GIO COMERCIAL]\nFORMATO=TXT1\n"
+        L"ARQUIVO=\"Mapas\\Relogio.txt\"\n");
+
+    // O round-trip preserva o texto original (inclusive as aspas).
+    CHECK_EQ(doc.text(),
+             L"[BLOCO COMERCIAL]\nFORMATO=AUTO\n"
+             L"[REL\u00d3GIO COMERCIAL]\nFORMATO=TXT1\n"
+             L"ARQUIVO=\"Mapas\\Relogio.txt\"\n");
+
+    std::wstring fmt;
+    CHECK_MSG(doc.sectionKeyValue(ConfigScope::Comercial, L"formato", fmt),
+              "comercial encontrado");
+    CHECK_EQ(fmt, L"AUTO");
+
+    // O valor entre aspas é lido SEM as aspas.
+    CHECK_MSG(doc.sectionKeyValue(ConfigScope::RelogioComercial, L"arquivo", fmt),
+              "relogio com acento encontrado");
+    CHECK_EQ(fmt, L"Mapas\\Relogio.txt");
+
+    // A interpretação reconhece a opção dentro da seção acentuada.
+    const auto scopes =
+        readScopes(doc, std::filesystem::temp_directory_path());
+    CHECK_MSG(scopes[2].present &&
+                  scopes[2].option == FormatOption::Single,
+              "seção acentuada interpretada como Único");
+}
+
 void testLocateFiles()
 {
     // Cria uma estrutura temporÃ¡ria de instalaÃ§Ã£o.
@@ -410,6 +444,7 @@ int main()
     testDocumentCreateSection();
     testDocumentAfiliadasEdit();
     testDocumentEolPreservation();
+    testDocumentTolerances();
     testLocateFiles();
     testValidation();
     testReadingScopes();

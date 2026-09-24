@@ -84,6 +84,23 @@ public:
 
     readconf::ConfigScope scope() const { return m_scope; }
 
+    // Altura do cartão conforme o conteúdo (lista de arquivos do Semanal/AUTO
+    // tem até 7 itens; antes ficavam cortadas por um valor fixo).
+    int preferredHeight() const
+    {
+        size_t lines = 0;
+        if (m_snap.present && m_snap.option != readconf::FormatOption::Unknown) {
+            lines = 1 + m_snap.files.size();
+        } else if (m_snap.present) {
+            lines = 3; // mensagem "não reconhecida" pode ocupar 2-3 linhas
+        } else {
+            lines = 3; // mensagem "A execução usa..." + eventual linha ARQUIVO
+        }
+        const int filesTop = m_showToken ? 128 : 108;
+        const int filesH = juce::jmax(24, static_cast<int>(lines) * 14 + 6);
+        return juce::jmax(190, filesTop + filesH + 6);
+    }
+
     void resized() override
     {
         const int margin = 8;
@@ -325,8 +342,8 @@ public:
 
     int preferredHeight() const
     {
-        const int base = 48;
-        return base + static_cast<int>(m_rows.size()) * (28 + 4) + 8;
+        // info (18+20) -> botão (40+24) -> linhas a partir de y=68.
+        return 68 + static_cast<int>(m_rows.size()) * (28 + 4);
     }
 
     void resized() override
@@ -337,12 +354,14 @@ public:
         m_addSection.setBounds(60, 40, 180, 24);
         m_addRow.setBounds(margin, 40, 180, 24);
 
-        int y = 42 + 28 + 4;
+        int y = 68;
         for (auto& row : m_rows) {
             row->setBounds(margin, y, getWidth() - 2 * margin, rowH);
             y += rowH + 4;
         }
-        setSize(getWidth(), preferredHeight());
+        // A altura deve caber todas as linhas DENTRO do cartão (antes a última
+        // linha/seus botões ficavam para fora da borda inferior do grupo).
+        setSize(getWidth(), 68 + static_cast<int>(m_rows.size()) * (rowH + 4));
     }
 
     // Fonte atual das linhas (para onRowChanged sincronizar com o controlador).
@@ -576,9 +595,17 @@ void ConfiguratorTab::layoutContent()
     int y = margin;
 
     for (auto& card : m_cards) {
-        const int cardH = (card.get() == static_cast<juce::Component*>(m_afiliadasCard))
-                              ? preferredAfiliadasHeight()
-                              : preferredScopeCardHeight();
+        int cardH = 190;
+        if (card.get() == static_cast<juce::Component*>(m_afiliadasCard)) {
+            cardH = preferredAfiliadasHeight();
+        } else {
+            for (ScopeCard* sc : m_scopeCards) {
+                if (sc == card.get()) {
+                    cardH = sc->preferredHeight();
+                    break;
+                }
+            }
+        }
         card->setBounds(margin, y, contentWidth - 2 * margin, cardH);
         y += cardH + margin;
     }
@@ -601,11 +628,6 @@ void ConfiguratorTab::updateDirtyLabel()
         m_dirtyLabel.setText("documento em dia", juce::dontSendNotification);
         m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::lime);
     }
-}
-
-int ConfiguratorTab::preferredScopeCardHeight()
-{
-    return 190;
 }
 
 int ConfiguratorTab::preferredAfiliadasHeight() const

@@ -30,8 +30,10 @@ public:
     // Altera o caminho do playlist.ini (usado ao trocar de localização).
     void setPlaylistIniPath(std::filesystem::path playlistIniPath);
 
-    // Pasta raiz da instalação do Playlist (usada para localizar os arquivos
-    // de programação de cada escopo).
+    // Pasta onde ficam as PASTAS DE PROGRAMAÇÃO do Playlist (mapas/grades/
+    // relógios): normalmente a MESMA pasta do Playlist.exe (ex.:
+    // C:\Playlist\pgm, com mapas em C:\Playlist\pgm\Mapas). Usada para
+    // localizar os arquivos de cada escopo.
     void setInstallationFolder(std::filesystem::path installFolder);
     const std::filesystem::path& installationFolder() const { return m_installFolder; }
 

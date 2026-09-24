@@ -149,9 +149,7 @@ void EditorTab::loadIntoEditor()
         const bool comercial = (m_current == FileKind::RelogioComercial);
         PlaylistIni& service = comercial ? m_relogioComercial : m_relogioMusical;
         service.setPath(resolvedRelogioPath(
-            m_controller, comercial,
-            m_controller.path().empty() ? std::filesystem::path()
-                                        : m_controller.path().parent_path()));
+            m_controller, comercial, m_controller.installationFolder()));
         service.setDisplayName(comercial ? L"Relógio Comercial"
                                          : L"Relógio Musical");
         std::wstring msg;
