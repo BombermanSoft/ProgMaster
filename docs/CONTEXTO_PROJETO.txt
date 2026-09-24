@@ -1,0 +1,689 @@
+========================================================================
+CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
+Data: 15/09/2026
+Status: Etapa 1 concluída (compilação limpa e testes de componentes verdes)
+========================================================================
+
+------------------------------------------------------------------------
+A. OBJETIVO DO PROJETO
+------------------------------------------------------------------------
+Construir um programa de desktop para Windows (C++) que complementa o
+sistema "Playlist". Na Etapa 1 (única no momento) o programa deve:
+
+  1. Ser informado do caminho do executável do Playlist (Playlist.exe),
+     validar essa informação e guardá-la de forma persistente;
+  2. Permitir editar o arquivo "playlist.ini" como texto puro (como um
+     Bloco de Notas), preservando a codificação original do arquivo e
+     avisando o usuário sobre alterações não salvas;
+  3. Abrir o "ConfigManager.exe" do Playlist a pedido do usuário;
+  4. Ler o arquivo "folders.xml" do Playlist (sempre SOMENTE LEITURA) e
+     listar todos os códigos (DBFId) na guia "Códigos", junto com o Título
+     quando conhecido.
+
+Informações que não existem na especificação e não podem ser inventadas
+são marcadas abaixo como A DEFINIR ou NECESSITA DE ESPECIFICAÇÃO.
+
+------------------------------------------------------------------------
+B. O QUE ESTÁ IMPLEMENTADO E O QUE NÃO ESTÁ
+------------------------------------------------------------------------
+B.1. Implementado (Etapa 1)
+  [x] Localização e validação do Playlist.exe (diálogo com "Procurar..." e
+      "Confirmar"); persistência do caminho em
+      %APPDATA%\ProgMaster\config.txt (migração automática da pasta antiga
+      %APPDATA%\PlaylistComplementar desde o rebranding, ver seção O);
+  [x] Edição textual do playlist.ini (área de edição, "Salvar" e "Descartar",
+      rastreamento de alterações e confirmação ao sair/alternar guia);
+  [x] Preservação da codificação do playlist.ini ao salvar (ver seção E.2);
+  [x] Abrir ConfigManager.exe (menu / botão);
+  [x] Leitura do folders.xml e exibição na guia "Códigos" (colunas:
+      Código | Nome; barra de status com totais e duplicados);
+  [x] folders.xml tratado estritamente como somente leitura (não existe
+      nenhuma API de gravação para esse arquivo);
+  [x] Arquitetura modular (núcleo lógico separado da interface);
+  [x] Documentação deste arquivo.
+
+B.2. NÃO implementado (propositalmente fora do escopo da Etapa 1)
+  [ ] Interpretação/semântica do conteúdo do playlist.ini (blocos, chaves,
+      significados de horários, programação). O programa apenas edita o
+      texto; NÃO valida nem interpreta as regras do Playlist. A interpretação
+      pertence às Etapas/Rodadas futuras e aguarda especificação.
+  [ ] Grades, Mapas, Relógios e qualquer outra aba além de "Códigos".
+  [ ] Backup completo da instalação.
+
+B.3. Comportamentos e decisões de escopo
+  - DBFId é o identificador principal de um registro de folders.xml.
+    Registros SEM DBFId são exibidos sem código — nada é inventado.
+  - Registros com DBFId duplicado são preservados (sem dedução automática)
+    e contabilizados na barra de status.
+  - "ConfigManager.exe" é aberto apenas; a Etapa 1 não interage com ele.
+  - O programa NÃO modifica o Playlist instalado além das edições que o
+    usuário fizer no playlist.ini pela interface.
+
+------------------------------------------------------------------------
+C. METODOLOGIA E DECISÕES TÉCNICAS
+------------------------------------------------------------------------
+C.1. Linguagem e bibliotecas
+  - C++17.
+  - Win32 API pura (janelas, controles comuns, diálogo de arquivo).
+    Nenhuma biblioteca de terceiros (Qt, wxWidgets etc.) — a meta é um
+    executável único sem dependências além das DLLs padrão do Windows.
+  - Dependências de sistema usadas (todas presentes em qualquer Windows
+    comum): comctl32 (abas/ListView), comdlg32 (abrir arquivo), shell32
+    (pasta AppData/personalizada).
+  - Interface com controles comuns versão 6.0 (tema moderno do Windows) e
+    DPI-aware (escalas 125%/150% sem distorção de layout).
+
+C.2. Codificações e "unicode"
+  - Código-fonte em UTF-8; MSVC compilado com /utf-8.
+  - O programa é compilado com UNICODE/_UNICODE (API Wide).
+  - Arquivo settings (config.txt): texto UTF-8 sem BOM, linha por linha,
+    formato "Chave=Valor".
+  - Log (log.txt): UTF-8 com BOM (após 15/09/2026), acréscimo por linha,
+    com timestamp "aaaa-mm-dd hh:mm:ss".
+
+C.3. Ferramentas de build
+  - Windows, MSVC Build Tools 2022.
+  - CMake (>= 3.16) + gerador "Visual Studio 17 2022".
+  - CRT da Microsoft compilada estaticamente (/MT) para não depender de
+    vcruntime140.dll (meta de exe único).
+  - Em modo Debug, /MTd equivalente.
+
+C.4. Convenções
+  - Núcleo de lógica não toca em APIs de interface. As views de UI recebem
+    serviços do núcleo e traduzem resultados para mensagens de usuário.
+  - Erros são retornados em duas camadas: mensagem de usuário (exibível) e
+    mensagem técnica (dashboardada no log).
+  - Nada é assumido/inventado: qualquer dado desconhecido é A DEFINIR ou
+    NECESSITA DE ESPECIFICAÇÃO.
+
+------------------------------------------------------------------------
+D. ESTRUTURA DE ARQUIVOS DO PROJETO
+------------------------------------------------------------------------
+C:\Users\Usuario\Documents\Config-alpha1\
+├─ CMakeLists.txt                    Definicao do projeto e regras de build
+├─ CMakePresets.json                 Presets para VS Code / linha de comando
+├─ .gitignore
+├─ .vscode\
+│  ├─ tasks.json                     Tarefa "build" (CMake+MSBuild)
+│  ├─ launch.json                    Depuração da aplicação
+│  └─ settings.json                  Ajustes do editor para este projeto
+├─ resources\
+│  ├─ ProgMaster.ico                  Ícone do aplicativo (bomba, ver seção O)
+│  ├─ resource.h                      IDs de recursos (IDI_APP)
+│  ├─ ProgMaster.rc                   Script de recursos (inclui o ícone)
+│  └─ README.txt                      Observações de recursos
+├─ docs\
+│  └─ CONTEXTO_PROJETO.txt           Este arquivo (obrigatório para o projeto)
+├─ build\                            Artefatos de build (não versionar)
+│  └─ Release\ProgMaster.exe
+└─ src\
+   ├─ main.cpp                       Ponto de entrada wWinMain -> Application
+   ├─ core\
+   │  ├─ Application.h/.cpp          Composição do programa e loop de mensagens
+   │  ├─ Settings.h/.cpp             Config em %APPDATA%\ProgMaster
+   │  ├─ Log.h/.cpp                  Log técnico em %APPDATA%\ProgMaster\log.txt
+   │  └─ TextFileIO.h/.cpp           Leitura/gravação com preservação de cod.
+   ├─ models\
+   │  └─ FolderEntry.h/.cpp          Modelo de um registro de folders.xml
+   ├─ playlist\
+   │  ├─ PlaylistLocator.h/.cpp      Localizar/validar/persistir Playlist.exe
+   │  ├─ PlaylistInstallation.h/.cpp Descobrir arquivos da instalação
+   │  ├─ PlaylistIni.h/.cpp          Serviço de texto puro do playlist.ini
+   │  └─ FoldersXml.h/.cpp           Parser somente leitura do folders.xml
+   └─ ui\
+      ├─ MainWindow.h/.cpp           Janela principal, abas e coordenação
+      ├─ IniEditorView.h/.cpp        Aba "Playlist.ini" (editor de texto)
+      ├─ CodesPageView.h/.cpp        Aba "Códigos" (ListView + estatísticas)
+      └─ LocatePlaylistDialog.h/.cpp Diálogo modal de localização do exe
+
+------------------------------------------------------------------------
+E. EXPLICAÇÃO DAS CLASSES E FUNÇÕES (POR MÓDULO)
+------------------------------------------------------------------------
+E.1. core\Application
+  - run(): cria Settings, Log, PlaylistLocator, MainWindow; inicia loop de
+    mensagens; valida/imprime estado inicial no log.
+  - Garante a inicialização única de componentes antes de exibir a janela.
+
+E.2. core\TextFileIO  (base do modo texto do playlist.ini)
+  - readWide(path): lê bytes e detecta a codificação:
+      * BOM UTF-8 (EF BB BF) -> TextEncoding::Utf8Bom
+      * BOM UTF-16 LE (FF FE) e BE (FE FF) -> TextEncoding::Utf16Le/Utf16Be
+      * sem BOM -> tenta UTF-8 estrito; se válido, Utf8; senão UTF-16LE
+        heurística (NULs em posições ímpares); última opção Ansi (CP_ACP).
+  - writeWide(path, texto, codificacaoOriginal): grava de volta na MESMA
+    codificação detectada (incluindo BOM). Para Ansi (CP_ACP), codifica e
+    reconfirma por decodificação; se algum caractere não for representável
+    na página de código local, a gravação é RECUSADA com mensagem clara
+    (evita gravar ? no lugar de caracteres).
+  - Gravação atômica: escreve em arquivo temporário (.tmp) no mesmo diretório
+    e usa MoveFileExW para substituir; reduz risco de arquivo corrompido.
+  - Detalhe de implementação: WC_ERR_INVALID_CHARS não é suportado com
+    CP_ACP (retorna ERROR_INVALID_FLAGS); por isso a validação ANSI é feita
+    por round-trip, não por flag.
+  - Limitação documentada: um arquivo 100% ASCII é indistinguível entre
+    ANSI e UTF-8; nesse caso o leitor assume UTF-8 (bytes idênticos para
+    ASCII, sem mudança de conteúdo).
+
+E.3. core\Settings  (pasta: %APPDATA%\ProgMaster)
+  - getAppDataDir(): resolve via SHGetFolderPathW (CSIDL_APPDATA).
+  - load()/save(): arquivo config.txt UTF-8 sem BOM, "Chave=Valor".
+  - Chaves atuais: PlaylistExePath.
+
+E.4. core\Log
+  - init(): garante a pasta AppData e cria o log com BOM UTF-8 (só na 1ª vez).
+  - append/info/error: linhas "[aaa-mm-dd hh:mm:ss] <texto>".
+  - Sempre abre em append; falha de gravação não derruba o programa.
+
+E.5. models\FolderEntry
+  - Estrutura de dados com os campos extraídos do folders.xml:
+    dbfId (string), title (string), id, type, target (strings), folder (bool,
+    true se o elemento XML é <Folder>).
+
+E.6. playlist\PlaylistLocator
+  - tryLoadSavedPath(): lê PlaylistExePath do config e valida existência.
+  - setPath(newPath): valida que o arquivo existe, atualiza estado em
+    memória, persiste em config.txt e loga.
+  - É a única autoridade sobre "qual Playlist.exe o programa usa".
+
+E.7. playlist\PlaylistInstallation
+  - Recebe o caminho do exe e descobre os arquivos da instalação:
+      * Se o diretório do exe chama-se "pgm" (sem diferenciar maiúsculas),
+        a raiz da instalação é o diretório PAI; senão a raiz é o próprio
+        diretório do exe.
+      * playlistIniPath(): raiz\playlist.ini (fallback: diretório do exe).
+      * foldersXmlPath(): raiz\folders.xml (fallback: diretório do exe).
+      * configManagerPath(): raiz\Pgm\ConfigManager.exe (fallbacks: pasta
+        do exe e raiz).
+      * mapasTxtPath(): busca flexível entre candidatos e devolve o PRIMEIRO
+        que existir no disco (ordem: pasta "mapas"/"mapa" na pasta do exe com
+        "mapa.txt"/"Mapas.txt", depois equivalentes na raiz da instalação).
+        Se nenhum existir, devolve o caminho-alvo canônico
+        <pasta do exe>\mapas\mapa.txt (pasta plural, arquivo singular).
+      * gradesTxtPath(): idem (candidatos: "grades"/"grade"/"Grades" com
+        "grade.txt"/"grades.txt"; canônico de criação:
+        <pasta do exe>\grades\grade.txt).
+  - A busca flexível existe porque o usuário relatou nomes diferentes em
+    mensagens diferentes ("mapa" vs "mapas", "grade.txt" vs "grades.txt");
+    o que existir no disco é usado, e o nome EXIBIDO no editor passa a ser o
+    nome REAL do arquivo encontrado.
+  - Validações de existência feitas no momento do uso (o caminho do exe
+    salvo pode deixar de existir depois; o programa detecta e avisa).
+
+E.8. playlist\PlaylistIni
+  - setPath(path) + load() + save(): delega para TextFileIO preservando a
+    codificação detectada; expõe encoding() para a UI.
+  - Não interpreta o conteúdo (não conhece blocos/chaves do Playlist).
+
+E.9. playlist\FoldersXml  (SOMENTE LEITURA)
+  - readAll(path, registros, erroTecnico): parser manual (pilha de
+    elementos) que percorre o XML e extrai, de cada Folder:
+      * primeiro valor de DBFId encontrado (identificador principal);
+      * primeiro valor de Title encontrado;
+      * valores de ID/Type/Target quando presentes.
+  - Fontes de campo aceitas (primeira ocorrência vence):
+      * texto direto dos elementos filhos (ex.: <DBFId>123</DBFId>);
+      * atributos do próprio elemento (ex.: <Folder DBFId="123"/>), o que
+        também cobre pastas auto-fechadas (<Folder/>);
+      * nomes de elementos/atributos sem diferenciar maiúsculas e com ou
+        sem prefixo de namespace ("f:Folder" é tratado como "Folder").
+  - Registros aninhados (pastas dentro de pastas) geram entradas
+    independentes.
+  - Fallback para arquivos que NÃO usam <Folder> como contêiner: se a
+    primeira passada não emitir nenhum registro, o parser associa cada
+    <DBFId> ao <Title> seguinte na ordem do documento (i-ésimo código com
+    i-ésimo título). Registrado no log como "fallback de pareamento
+    DBFId/Title ativado" (ver K.12 e teste J.6).
+  - XML de quebra (tag sem fechamento, campos inconsistentes) é tratado
+    com tolerância controlada; a API não oferece edição/gravação —
+    decisão de projeto para impedir qualquer modificação acidental da
+    base do Playlist.
+  - DIAGNÓSTICO: o log.txt registra "<Folder> abertos/auto-fechados, tags
+    <DBFId>, tags <Title> e registros emitidos" (linha "[folders-xml]").
+
+E.10. ui\MainWindow
+  - Cria o MENU (Arquivo | Editar), as abas ("Editor" e "Códigos") e a
+    barra de status (o caminho do Playlist.exe NÃO é exibido na tela).
+  - Arquivo: Configuração de pastas (abre ConfigManager.exe), Lista de
+    IDs (ativa a guia Códigos), Trocar localização (abre o diálogo já
+    preenchido com o caminho atual), Salvar, Descartar alterações e Sair.
+  - Editar: Programação (playlist.ini), Mapa Comercial (mapas\Mapas.txt)
+    e GradesMusicais (Grades\Grades.txt) — cada um carrega o arquivo no
+    Bloco de Notas interno.
+  - Rastreia o arquivo em edição (EditorFile) e direciona Salvar/
+    Descartar/fechamento para o arquivo certo; avisa "alterações não
+    salvas" ao trocar de arquivo, mudar localização ou sair.
+  - WM_INITMENUPOPUP habilita/desabilita Salvar e Descartar conforme o
+    estado atual do editor (centralizado em onCommand).
+
+E.11. ui\IniEditorView
+  - Caixa de edição multiline com marca de sujeira (dirty) via EN_CHANGE
+    (com guarda programática para não sujar ao preencher via código).
+  - Barra de ferramentas (comctl32, ícones padrão IDB_STD_SMALL_COLOR):
+    disquete = Salvar; seta para trás = VOLTAR (desfazer); seta para
+    frente = PROSSEGUIR (refazer).
+  - Desfazer/refazer via HISTÓRICO PRÓPRIO: uma lista de versões do texto
+    (até 100); EN_CHANGE adiciona versão; VOLTAR/PROSSEGUIR navega. O
+    controle EDIT do Windows só tem desfazer de 1 nível, por isso o
+    histórico é mantido no aplicativo.
+  - setDisplayName/arquivo em edição exibidos na barra da página.
+  - CORREÇÃO DE SOBREPOSIÇÃO (16/09/2026): o layout usava
+    TCM_ADJUSTRECT com wParam=TRUE (expande a área da página), fazendo a
+    barra de ferramentas e o campo de edição subirem sobre a faixa de
+    abas e o menu. A chamada correta usa wParam=FALSE, que encolhe o
+    retângulo para a área abaixo da faixa de abas (ver K.13).
+
+E.12. ui\CodesPageView
+  - ListView em modo "report", colunas: Código | Nome (DBFId | Title).
+  - Linhas sem DBFId exibem campo vazio (não se inventa código).
+  - Linha de resumo no topo da página: totais (registros, com/sem DBFId e
+    duplicados); rodapé com o caminho do folders.xml usado.
+  - Após popular, a lista é redesenhada imediatamente (RedrawWindow),
+    mesmo quando a aba Códigos não está ativa.
+
+E.13. ui\LocatePlaylistDialog
+  - Janela modal. "Procurar..." usa GetOpenFileNameW (filtro Playlist.exe).
+  - "Confirmar" chama PlaylistLocator::setPath e fecha; erro de validação é
+    mostrado sem fechar. Guarda o caminho persistido.
+  - CORREÇÃO (15/09/2026): a janela do diálogo passou a ser criada com o
+    estilo WS_VISIBLE e exibida explicitamente (ShowWindow + UpdateWindow)
+    antes do loop modal, com SetFocus no campo do caminho. O motivo é
+    explicado em K.7.
+  - Janela ampliada para 560x152 com controle reorientado (campo de caminho,
+    "Procurar...", e botões "Confirmar"/"Cancelar" no rodapé).
+
+------------------------------------------------------------------------
+F. FLUXO DA APLICAÇÃO (USO PRÁTICO)
+------------------------------------------------------------------------
+  1. Início: Application::run() inicializa Settings, Log e MainWindow.
+  2. Se não houver caminho válido salvo: a janela pede a localização do
+     Playlist.exe (diálogo de localização modal).
+  3. Com caminho válido: PlaylistInstallation descobre os arquivos;
+     playlist.ini é carregado no editor (com a codificação preservada) e
+     folders.xml é lido para popular a guia "Códigos".
+  4. Usuário edita playlist.ini (aba "Playlist.ini") e usa Salvar/Descartar;
+     alterações pendentes acionam confirmações antes de sair/trocar de aba.
+  5. "Abrir ConfigManager" executa o ConfigManager.exe da instalação.
+  6. Ao fechar, se houver alterações não salvas, o programa pergunta antes
+     de encerrar.
+
+------------------------------------------------------------------------
+G. COMO COMPILAR
+------------------------------------------------------------------------
+Requisitos: Windows, MSVC Build Tools 2022, CMake >= 3.16.
+(O uso de Ninja é opcional; abaixo está o fluxo com o gerador Visual Studio.)
+
+Pelo PowerShell, na pasta raiz do projeto (C:\Users\Usuario\Documents\Config-alpha1):
+
+  cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+  cmake --build build --config Release
+
+Resultado: build\Release\ProgMaster.exe
+Saída limpa com /W4 (sem warnings) é o estado esperado e verificado.
+
+No VS Code: Ctrl+Shift+B (tarefa definida em .vscode\tasks.json).
+
+-----------------------------------------------------------------------
+H. COMO EXECUTAR
+-----------------------------------------------------------------------
+  build\Release\ProgMaster.exe
+(ou: "cmake --build build --config Release" + executar o binário gerado).
+
+Na primeira execução, informe onde está o Playlist.exe. O programa grava o
+caminho em %APPDATA%\ProgMaster\config.txt e reutiliza nas
+próximas execuções (se o arquivo deixar de existir, ele avisa e volta a
+pedir a localização).
+
+Arquivos gerados em %APPDATA%\ProgMaster:
+  config.txt   Caminho salvo do Playlist.exe (UTF-8 sem BOM).
+  log.txt      Log técnico (UTF-8 com BOM), útil para diagnosticar o fluxo.
+
+-----------------------------------------------------------------------
+I. COMO GERAR UM ÚNICO EXECUTÁVEL PARA DISTRIBUIÇÃO
+-----------------------------------------------------------------------
+A meta "um único arquivo" já está atendida na configuração atual:
+  - CRT (Microsoft) vinculada estaticamente (/MT) -> não depende de
+    vcruntime140.dll;
+  - dependências de importação verificadas (dumpbin /dependents):
+      COMCTL32.dll, COMDLG32.dll, SHELL32.dll, KERNEL32.dll, USER32.dll,
+      GDI32.dll  (parte do sistema operacional em qualquer Windows comum);
+
+Portanto, para distribuir basta copiar:
+  build\Release\ProgMaster.exe
+
+O ícone do aplicativo (bomba) é embutido no executável via recurso RC
+(resources\ProgMaster.ico + ProgMaster.rc, ver seção O).
+
+------------------------------------------------------------------------
+J. TESTES REALIZADOS
+------------------------------------------------------------------------
+J.1. Testes de componentes (projeto temporário em
+     C:\Users\Usuario\AppData\Local\Temp\opencode\pc_test — sem DLLs de
+     UI, compila apenas núcleo):
+  - PlaylistInstallation com instalação fake (pasta "pgm"): raiz, ini,
+    folders.xml e ConfigManager localizados corretamente.
+  - TextFileIO: round-trip UTF-8 (sem/com BOM), UTF-16LE, UTF-16BE e ANSI;
+    verificação de que caracteres não representáveis em Ansi/CP_ACP são
+    recusados (evita gravar '?'). 
+  - PlaylistIni: leitura de playlist.ini em UTF-8 com BOM, alteração e
+    salva; BOM preservado e conteúdo intacto após regravação.
+  - FoldersXml: 6 registros esperados (incluindo aninhada, duplicado de
+    DBFId e registro sem DBFId) — todos verificados.
+  Resultado: 0 falhas.
+
+J.2. Teste de ponta a ponta (aplicação real + instalação fake):
+  - config.txt apontando para uma instalação fake: o programa iniciou,
+    recuperou o caminho salvo ("Playlist.exe recuperado do caminho salvo")
+    e permaneceu em execução até ser encerrado manualmente.
+  - Confirmação visual das janelas: janela principal abre e se mantém
+    estável.
+  - (Interação visual completa com mouse/teclado não automatizada — feita
+    de forma manual/manual-guided, A DEFINIR se é exigido teste GUI automatizado.)
+
+J.3. Verificação de distribuição:
+  - dumpbin /dependents: apenas DLLs do sistema (ver seção I).
+
+J.4. Correção do diálogo modal (15/09/2026) — verificação automatizada:
+  - Programa executado SEM caminho salvo (interação limpa).
+  - Conferido via Win32 (GetForegroundWindow + FindWindowEx) que a janela
+    "Localizar Playlist.exe" é criada em PRIMEIRO PLANO, com WS_VISIBLE,
+    retângulo na tela, e contém: caixa de edição de caminho e os botões
+    "Procurar...", "Confirmar" e "Cancelar" — prova de que o diálogo está
+    visível e clicável (antes da correção ele era invisível e a janela
+    principal ficava desabilitada).
+
+J.5. Melhorias de interface e Códigos (15/09/2026) — verificação via log:
+  - Com instalação fake (arquivos reescritos com: Folder auto-fechada com
+    atributos, Folder com DBFId/Title em elementos, registro sem DBFId,
+    Folder com namespace "f:Folder"), o parser retornou os 5 registros
+    esperados e o log confirmou "ListView itens = 5" — ou seja, a guia
+    Códigos recebe as linhas de fato.
+  - Diagnóstico de layout (PC_UI_DEBUG=1): retângulos dos botões registrados
+    no log.txt comprovam que cada botão ocupa espaço próprio (sem
+    sobreposição), com lacunas uniformes de 8px.
+
+J.6. Interface por menu + editor multi-arquivo (16/09/2026) — automação:
+  - Menu verificado via Win32 (GetMenu/GetMenuString): "Arquivo" com 9
+    itens (na ordem da seção N.1) e "Editar" com 3 (Programação id 4101,
+    Mapa Comercial id 4102, GradesMusicais id 4103).
+  - Toolbar do editor: janela ToolbarWindow32 presente com TB_BUTTONCOUNT=3
+    (disquete/voltar/prosseguir; os ícones são dos bitmaps padrão do
+    comctl32, sem recursos externos).
+  - Troca de arquivos por menu: Pedir "Programação" carrega "[BLOCO
+    COMERCIAL]...", "Mapa Comercial" carrega "Mapa 1: Avenida Central...",
+    "GradesMusicais" carrega "Segunda: grade A..." (conteúdos distintos).
+  - VOLTAR/PROSSEGUIR: digitação simulada com WM_CHAR (dispara EN_CHANGE)
+    cria 3 versões no histórico; VOLTAR reduz o tamanho do texto, VOLTAR
+    novamente reduz mais, PROSSEGUIR restaura (len 35->34->33->34).
+  - Salvar (menu id 4004) grava no disco com a codificação original;
+    Descartar (id 4005) recarrega o arquivo do disco.
+  - folders.xml: estrutura com <Folder> -> 3 registros; estrutura SEM
+    <Folder> (apenas <Item><DBFId/Title>) -> fallback ativado -> 2
+    registros ("ListView itens = 2 / esperado 2").
+
+------------------------------------------------------------------------
+K. PROBLEMAS CONHECIDOS / LIMITAÇÕES
+------------------------------------------------------------------------
+K.1. Codificação ambígua: arquivo 100% ASCII é lido como UTF-8 (indistinguível
+     de ANSI). Sem mudança de conteúdo, mas a gravação subsequente ocorre em
+     UTF-8 (compatível com texto ASCII).
+K.2. WC_ERR_INVALID_CHARS não funciona com CP_ACP: a validação ANSI usa
+     decodificação reversa (round-trip). Ver seção E.2.
+K.3. Nenhum dado do folders.xml além de DBFId/Title/ID/Type/Target é usado
+     nesta etapa; outros campos (caso existam na instalação real) são
+     ignorados. A lista de campos baseia-se em exemplo fornecido; campos
+     reais adicionais NECESSITAM DE ESPECIFICAÇÃO.
+K.4. Sem ícone/ativo no executável (usa ícone padrão). A DEFINIR.
+K.5. Testes de UI automatizados não foram construídos (aplicação manual). 
+     A DEFINIR se a Etapa 2 exigirá suíte de testes GUI.
+K.6. A interpretação do playlist.ini (regras de programação) NÃO existe
+     nesta etapa por decisão de escopo (ver B.2).
+
+K.7. CORRIGIDO em 15/09/2026 — diálogo modal invisível (interface "travada"):
+     Descreviam como "executou e não dá pra clicar em nada" o seguinte bug:
+     a janela do diálogo "Localizar Playlist.exe" era criada SEM o estilo
+     WS_VISIBLE e nunca era exibida (faltava ShowWindow). Ao mesmo tempo, a
+     implementação do loop modal desabilita a janela principal
+     (EnableWindow(owner, FALSE)). Resultado: a janela principal abria MAS
+     ficava desabilitada (nenhum clique era aceito) e o diálogo existia
+     invisível por cima dela, mantendo o programa bloqueado no loop modal.
+     Correção aplicada em src/ui/LocatePlaylistDialog.cpp:
+       * estilo da janela passa a incluir WS_VISIBLE;
+       * após CreateWindowExW, chamadas de ShowWindow(SW_SHOWNORMAL) e
+         UpdateWindow();
+       * SetFocus no campo do caminho depois da exibição.
+     Verificação: executando o programa sem caminho salvo, a janela
+     "Localizar Playlist.exe" aparece em primeiro plano, visível, com a
+     caixa de caminho e os botões Procurar.../Confirmar/Cancelar (ver J.4).
+
+K.8. CORRIGIDO em 15/09/2026 — layout frágil (botões sobrepostos):
+     O posicionamento dos controles dependia unicamente do WM_SIZE. Se a
+     janela abrisse antes desse evento chegar, todos os controles ficavam com
+     as posições iniciais (0,0) — visualmente "um em cima do outro" e sem
+     interação. Correções em src/ui/MainWindow.cpp:
+       * o layout agora é aplicado explicitamente logo após a criação da
+         janela (não depende mais somente de WM_SIZE);
+       * cada botão ganha espaço próprio em linhas dedicadas, com largura
+         fixa e lacuna uniforme de 8px;
+       * WS_CLIPCHILDREN na janela principal (filhos nunca desenham sobre
+         os irmãos);
+       * DPI-awareness (SetProcessDpiAwarenessContext) — em telas com
+         escala 125%/150% o layout permanece proporcional;
+       * Diagnóstico opcional PC_UI_DEBUG=1 grava os retângulos de todos
+         os controles no log.txt (ver J.5).
+
+K.9. CORRIGIDO em 15/09/2026 — guia Códigos sem linhas em arquivos com
+     atributos:
+     O parser do folders.xml só lia o TEXTO dos elementos filhos. Arquivos
+     que usam atributos (ex.: <Folder DBFId="123"/>) — ou pastas
+     auto-fechadas — resultavam em lista vazia. O parser agora:
+       * lê também atributos (<Folder DBFId="..."/>);
+       * cria registro para pastas auto-fechadas;
+       * ignora maiúsculas/minúsculas e prefixos de namespace.
+     Ver seção E.9 e teste J.5. A lista também passou a ser redesenhada
+     imediatamente após ser preenchida (ver E.12).
+
+K.10. INTERFACE REORGANIZADA em 16/09/2026 — botões e rótulo de caminho
+     substituídos por MENU (Arquivo | Editar) no topo (ver seção N).
+     O caminho do Playlist.exe NÃO é mais exibido na tela; "Trocar
+     localização" mostra o destino atual dentro do próprio diálogo.
+
+K.11. EDIÇÃO MULTI-ARQUIVO com VOLTAR/PROSSEGUIR (16/09/2026):
+     O editor em estilo Bloco de Notas agora edita 3 arquivos (playlist.ini,
+     mapas\Mapas.txt, Grades\Grades.txt) e mantém histórico próprio de
+     edição. O desfazer/refazer é implementado no aplicativo (lista de
+     versões do texto, até 100), porque o controle EDIT padrão do Windows só
+     oferece desfazer de UM nível. Limitação: o histórico é por sessão (é
+     descartado ao trocar de arquivo ou recarregar).
+
+K.12. DIAGNÓSTICO DO folders.xml (16/09/2026):
+     O log.txt agora registra a contagem de <Folder> abertos/auto-fechados,
+     tags <DBFId>/<Title> e registros emitidos. Se um arquivo não produzir
+registros porque NÃO usa <Folder>, um fallback associa cada <DBFId> ao
+    <Title> seguinte na ordem do documento (ver E.9). Se a lista ainda
+     ficar vazia com o arquivo real, o [folders-xml] no log mostra por quê.
+
+K.13. CAMINHOS DOS ARQUIVOS DE PROGRAMAÇÃO (16/09/2026, atualizado):
+     O usuário informou a estrutura das instalações: a pasta do Playlist.exe
+     contém as PASTAS "mapas" e "grades", e dentro delas os arquivos
+     "mapa.txt" e "grade.txt". Porém, em mensagens diferentes, o usuário
+     citou variações de nome ("mapa"/"mapas", "grade.txt"/"grades.txt").
+     Por isso o código adotou uma BUSCA FLEXÍVEL (ver K.16): testa várias
+     combinações de pasta/nome na pasta do exe e na raiz da instalação e usa
+     o primeiro que existir no disco; se nenhum existir, usa o caminho-alvo
+     canônico <pasta do exe>\mapas\mapa.txt e <pasta do exe>\grades\grade.txt
+     (para o Salvar criar o arquivo). Os arquivos NÃO ficam na raiz da
+     instalação nem no próprio diretório do exe. Verificado por automação
+     com Playlist.exe em pgm\ e textos carregados de mapas\mapa.txt e
+     grades\grades.txt.
+
+K.15. CRIAÇÃO DE ARQUIVO AO SALVAR (16/09/2026):
+     - Se o arquivo de programação (mapa.txt, grade.txt, playlist.ini) ainda
+       não existir, o menu Editar abre o editor VAZIO e a barra de status
+       avisa "ainda não existe — clique em Salvar (disquete) para criá-lo".
+     - Ao salvar, o programa cria a pasta-pai quando necessário
+       (create_directories) e grava o arquivo em UTF-8.
+     - O caminho-alvo é sempre conhecido (retornado por mapasTxtPath/
+       gradesTxtPath mesmo quando o arquivo não existe).
+
+K.16. BUSCA FLEXÍVEL DE mapa.txt / grade.txt + NOME REAL NO EDITOR (16/09/2026):
+     - mapasTxtPath()/gradesTxtPath() deixaram de usar um caminho fixo único
+       e agora testam uma lista de candidatos (pasta "mapas"/"mapa" e
+       "grades"/"grade"/"Grades", arquivo "mapa.txt"/"Mapas.txt" e
+       "grade.txt"/"grades.txt"; também variantes na raiz da instalação),
+       retornando o primeiro que existir no disco.
+     - Se nenhum existir, retornam o caminho-alvo canônico (criação no Salvar).
+     - loadFileIntoEditor() deriva o nome EXIBIDO do nome real do arquivo
+       encontrado (ex.: mostra "grades.txt" se o arquivo no disco for esse),
+       em vez de sempre "grade.txt".
+     - saveCurrentFile() usa o nome exibido nas mensagens ("criado com
+       sucesso"/"Alterações salvas").
+     - Diagnóstico: cada abertura grava em log.txt uma linha
+       "loadFile: <nome> -> <caminho completo usado>", permitindo confirmar
+       qual arquivo a instalação real escolheu.
+     - Verificado por automação: com SOMENTE grades\grades.txt no disco
+       (sem grade.txt), o menu GradesMusicais carregou o conteúdo do arquivo
+       PLURAL e o log confirmou o caminho escolhido.
+
+K.14. SOBREPOSIÇÃO DE CONTROLES CORRIGIDA (16/09/2026):
+     A barra de ferramentas do editor e o campo de texto estavam surgindo
+     por cima do menu e das abas ("Editor | Códigos"). Causa: o layout
+     passava TCM_ADJUSTRECT com wParam=TRUE, que EXPANDE o retângulo da
+     página em vez de reduzir para a área sob a faixa de abas. Com
+     wParam=FALSE (o modo correto), a área da página ficou em
+     page=(14,40)-(890,523) dentro do cliente, e a área útil da janela
+     passou a ser tab(10,10)-884x527 com status bar na base — todos os
+     controles agora ficam visíveis dentro da guia.
+
+------------------------------------------------------------------------
+L. PRÓXIMA ETAPA (A DEFINIR — aguarda especificação do cliente)
+------------------------------------------------------------------------
+Temas levantados como futuros (ainda sem especificação detalhada):
+  - Interpretação semântica do playlist.ini (blocos, horários, programação);
+  - Ajuste/edição assistida das regras da programação;
+  - Grades, Mapas, Relógios (novas abas/ferramentas);
+  - Backup da instalação do Playlist;
+  - Ícone próprio e identidade visual;
+  - Testes automatizados de interface (GUI), se exigidos.
+
+Nesta camada, qualquer um desses itens deve iniciar por um documento de
+especificação antes de virar código.
+
+------------------------------------------------------------------------
+N. INTERFACE POR MENU + EDIÇÃO MULTI-ARQUIVO (16/09/2026)
+------------------------------------------------------------------------
+A pedido do usuário, a interface foi reorganizada para ser dirigida por
+menus (substitui as linhas de botões da camada M). A janela agora tem:
+
+N.1. Menu "Arquivo" (topo):
+  - Configuração de pastas  -> abre o ConfigManager.exe;
+  - Lista de IDs            -> ativa a guia Códigos (DBFId do folders.xml);
+  - Trocar localização      -> altera o caminho do Playlist.exe; o diálogo
+                               já abre preenchido com o destino ATUAL;
+  - Salvar                  -> salva o arquivo em edição (mesma codificação);
+  - Descartar alterações    -> recarrega o arquivo em edição do disco
+                               (descarta o que foi digitado);
+  - Sair                    -> fecha o programa (avisa se houver alterações).
+
+N.2. Menu "Editar":
+  - Programação    -> abre playlist.ini no Bloco de Notas interno;
+  - Mapa Comercial -> abre o mapa.txt (busca flexível, ver K.16);
+  - GradesMusicais -> abre o grade.txt (busca flexível, ver K.16).
+
+N.3. Barra de ferramentas do editor (disquete/voltar/prosseguir):
+  - Disquete: SALVAR (ícone padrão do sistema, id IDC_INI_SAVE);
+  - Seta para trás: VOLTAR (desfazer);
+  - Seta para frente: PROSSEGUIR (refazer).
+  - Ícones vêm dos bitmaps padrão do comctl32 (IDB_STD_SMALL_COLOR:
+    STD_FILESAVE, STD_UNDO, STD_REDOW) — sem arquivos de recurso.
+
+N.4. O caminho do Playlist.exe NÃO é exibido na tela (permanece salvo em
+  %APPDATA%\ProgMaster\config.txt e visível ao clicar
+  "Trocar localização").
+
+N.5. Implementação e testes automatizados (ver J.6):
+  - menu Arquivo 9 itens / Editar 3 itens confirmados via GetMenu;
+  - toolbar presente com 3 botões (TB_BUTTONCOUNT=3);
+  - troca Programação/Mapa/Grades carrega o conteúdo correto;
+  - desfazer/refazer: digitação -> 3 versões; VOLTAR/PROSSEGUIR navega;
+  - Salvar (menu) grava no disco; Descartar recarrega o arquivo;
+  - folders.xml com <Folder> -> 3 registros; SEM <Folder> -> fallback 2.
+
+------------------------------------------------------------------------
+M. MELHORIAS DE INTERFACE APLICADAS (15/09/2026)
+------------------------------------------------------------------------
+A pedido do usuário, a interface foi modernizada e reorganizada, mantendo
+todas as funcionalidades aprovadas (localizar/persistir o Playlist.exe,
+edição textual do playlist.ini, abrir ConfigManager, listar DBFId). O que
+mudou em src/:
+
+M.1. Organização dos botões
+  - Cada botão em seu próprio espaço, em duas linhas dedicadas:
+      linha 1: caminho do Playlist.exe  |  [Alterar localização...]
+      linha 2: [Editar playlist.ini]  [Abrir ConfigManager]  [Recarregar dados]
+  - Larguras fixas e lacunas uniformes de 8px; nenhum controle sobrepõe o
+    outro (comprovado por diagnóstico em PC_UI_DEBUG=1).
+
+M.2. Visual moderno
+  - Controles comuns versão 6.0 habilitados via manifest (botões, abas,
+    ListView e caixas de edição com o tema atual do Windows).
+  - Aplicação DPI-aware (escalas 125%/150% mantêm o layout).
+  - Barra de status com estilo rebaixado (SS_SUNKEN) e guia "Códigos" com
+    linha de resumo no topo e rodapé com o caminho do arquivo.
+
+M.3. Novidade pequena e útil
+  - Botão "Recarregar dados": relê o folders.xml e o playlist.ini do disco
+    (com aviso se houver alterações não salvas no ini).
+
+M.4. Confiabilidade do layout
+  - layout() é executado na criação E no redimensionamento; janela principal
+    usa WS_CLIPCHILDREN; listas são forçadas a redesenhar após preencher.
+
+M.5. Diagnóstico (suporte)
+  - Variável de ambiente PC_UI_DEBUG=1 faz o app gravar os retângulos de
+    todos os controles (e a contagem de itens da ListView) no log.txt, sem
+    afetar o uso normal quando ausente.
+
+-----------------------------------------------------------------------
+O. REBRANDING PARA PROGMASTER + ÍCONE DE BOMBA (18/09/2026)
+-----------------------------------------------------------------------
+A pedido do usuário, o nome do software mudou de "Playlist Complementar"
+para "ProgMaster", e o ícone passou a ser uma BOMBA. Não houve mudança de
+funcionalidade — apenas identidade e recursos.
+
+O.1. O que mudou no nome (nomes visíveis e de arquivo):
+  - Executável: build\Release\ProgMaster.exe (target CMake "ProgMaster");
+  - Título e classe da janela principal: "ProgMaster" /
+    "ProgMasterMainWindow" (src\ui\MainWindow.cpp);
+  - Pasta de dados: %APPDATA%\ProgMaster (config.txt e log.txt;
+    src\core\Settings.cpp / Log).
+  - CMakeLists.txt: project(ProgMaster) e add_executable(ProgMaster...).
+
+O.2. Migração automática da configuração (importante para o usuário):
+  - Antes o caminho salvo do Playlist.exe ficava em
+    %APPDATA%\PlaylistComplementar\config.txt.
+  - Settings::load() agora, se a pasta nova não tiver config, lê a pasta
+    antiga e REGRAVA o caminho em %APPDATA%\ProgMaster\config.txt
+    automaticamente (a antiga não é apagada).
+  - Ou seja: quem já tinha configurado o Playlist.exe não precisa
+    configurar de novo após atualizar para ProgMaster.
+
+O.3. Ícone de bomba:
+  - resources\ProgMaster.ico: ícone gerado por script (System.Drawing):
+    esfera preta com brilho, pavio marrom e faísca acesa laranja/dourada;
+    7 resoluções embutidas (16, 24, 32, 48, 64, 128, 256), dados PNG.
+  - resources\ProgMaster.rc: recurso RC com "IDI_APP ICON ProgMaster.ico",
+    incluído via add_executable -> o ícone fica embutido no executável
+    (aparece no Explorer/taskbar).
+  - resources\resource.h: define IDI_APP=100, incluído no .rc e nos .cpp
+    (include dir de resources/ adicionado no CMake).
+  - MainWindow::create(): wc.hIcon/wc.hIconSm = LoadIconW(hm, IDI_APP),
+    possibilitando também o troca-rápida na barra de tarefas.
+  - Nota de compilação: o RC exige arquivos .h/.rc terminados em final de
+    linha (CRLF) — sem isso ocorre RC1004 "unexpected end of file".
+
+O.4. Verificação (automatizada):
+  - Título da janela = "ProgMaster"; HICON da classe da janela <> 0;
+  - playlist.ini carregado (32 chars), mapa.txt carregado (23 chars);
+  - config migrado de %APPDATA%\PlaylistComplementar para
+    %APPDATA%\ProgMaster com o mesmo caminho salvo.
+  - Build limpo (/W4) gerando build\Release\ProgMaster.exe.

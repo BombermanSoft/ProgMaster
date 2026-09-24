@@ -1,0 +1,10 @@
+# Pasta de build gerada pelo CMake
+build/
+
+# Arquivos gerados pelo Visual Studio
+.vs/
+*.user
+*.VC.db
+
+# Backups temporários de texto (usados na gravação atômica do playlist.ini)
+*.tmp

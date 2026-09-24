@@ -1,0 +1,5 @@
+// Arquivo de recursos do ProgMaster.
+// Inclui o ícone do aplicativo (bomba) usado na janela e no Explorer.
+#include "resource.h"
+
+IDI_APP ICON "ProgMaster.ico"
