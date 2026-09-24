@@ -1,0 +1,177 @@
+=======================================================================
+ARQUITETURA DO CÓDIGO — ProgMaster (Etapa 2, JUCE)
+Data: 24/09/2026
+=======================================================================
+
+RESUMO: núcleo em C++ puro (std::wstring + std::filesystem) separado da
+camada de interface JUCE. Toda a regra de formato vive em src/readconf,
+testada sem UI (110 testes). A UI (src/app) apenas "fonia" o núcleo.
+
+-----------------------------------------------------------------------
+1. VISÃO GERAL / CAMADAS
+-----------------------------------------------------------------------
++--------------------------------------------------------------+
+| src/app         — interface JUCE (namespace `app` em quase     |
+|                   tudo; MainWindow, ConfiguratorTab,          |
+|                   EditorTab, CodesTab, PlaylistConfigController|
+|                   LocatePlaylistDialog, ProgMasterApplication) |
++--------------------------------------------------------------+
+| src/readconf    — núcleo Etapa 2: documentos em memória,       |
+|                   regras de formato, validação de afiliadas    |
+|                   (SEM JUCE; testável)                         |
++--------------------------------------------------------------+
+| src/playlist src/models src/core — núcleo Etapa 1              |
+|   (Settings, Log, TextFileIO, PlaylistLocator,                |
+|    PlaylistInstallation, PlaylistIni, FoldersXml)              |
++--------------------------------------------------------------+
+
+Regra de ouro: nada em core/models/playlist/readconf conhece JUCE;
+conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
+
+-----------------------------------------------------------------------
+2. ESCOPO DE CADA NAMESPACE / CLASSE
+-----------------------------------------------------------------------
+2.1. Escopo GLOBAL (sem namespace)
+  - ProgMasterApplication  (JUCEApplication; inicializa log, settings,
+    locator e a MainWindow; onAboutToShutdown salva config)
+  - Settings, Log, PlaylistLocator, PlaylistInstallation, PlaylistIni,
+    FoldersXml, TextFileIO  (núcleo Etapa 1, escopo global)
+  - EditorTab               (guia bloco de notas — pai dos dados)
+
+2.2. Namespace app
+  - MainWindow              (DocumentWindow + MenuBarModel + fila de abas)
+  - ConfiguratorTab         (guia Configuração — cartões por escopo)
+  - ScopeCard, AfiliadaRow, AfiliadasCard   (AMIGAS de ConfiguratorTab,
+    não aninhadas — ver quirk MSVC C2911 na seção 6)
+  - CodesTab                (guia Códigos class App main table)
+  - LocatePlaylistDialog    (diálogo modal Procurar Playlist.exe)
+  - PlaylistConfigController(fonte única em memória do playlist.ini)
+  - jstr() / wstr()         (helpers de conversão, JuceHelpers.h)
+
+2.3. src/readconf (namespace readconf)
+  - FormatRules            escopo -> token de arquivo e formatos válidos
+  - PlaylistIniDocument    seções do ini em memória + re-serialização
+  - PlaylistFileLocator    resolve o arquivo esperado por escopo
+    (relógio semanal: Relogio<dia>.txt)
+  - ReadingConfiguration   interpretação dos escopos e validadores
+  - ScopeSnapshot / AfiliadaSnapshot (DTOs)
+
+-----------------------------------------------------------------------
+3. FLUXO DE DADOS DO playlist.ini
+-----------------------------------------------------------------------
+  PlaylistIni (texto puro, codificação preservada por TextFileIO)
+        |
+        v
+  PlaylistConfigController::load()
+        |   parseia += PlaylistIniDocument (seções Chave=Valor)
+        v
+  Guia Visual (ConfiguratorTab)  <---->  PlaylistIniDocument
+     |  exibe cartões; ComboBox aplica option;
+     |  addAfiliada/update/remove mantêm re-serializável
+     v
+  Guia Texto (EditorTab) <----> currentText()/setTextFromEditor()
+     |   MESMO documento; texto digitado vira o documento
+     v
+  Controller::save(): valida (afiliadas), serializa, grava na
+  codificação original via TextFileIO (gravação atômica).
+
+  Erros: usuário -> juce::AlertWindow; técnico -> Log.txt.
+
+-----------------------------------------------------------------------
+4. REGRAS DE FORMATO (readconf) — o "coração" da Etapa 2
+-----------------------------------------------------------------------
+  Cada escopo do ini aponta para uma linha ARQUIVO (token) e tem uma
+  lista de formatos reconhecidos:
+    [BLOCO COMERCIAL]   -> mapas\Mapa.txt  (formatos: "mapas\Mapa.txt" etc.)
+    [BLOCO MUSICAL]     -> grades\Grade.txt
+    [RELOGIO COMERCIAL] -> Relogio.txt (ou Relogio<dia>::txt semanal)
+    [RELOGIO MUSICAL]   -> Relogio.txt (idem)
+    [AFILIADAS]         -> linhas de endereço/porta/estado
+
+  Option = combinação (arquivo + layout) reconhecível; desconhecido =>
+  "não reconhecido" e o texto original é preservado no Salvar.
+  Validadores de afiliadas: "=" quando souhait pour gabaritos, porta
+  1..65535, flags de desabilitado; falha => nada é gravado.
+
+-----------------------------------------------------------------------
+5. UI JUCE — DECISÕES / PADRÕES
+-----------------------------------------------------------------------
+  - Menus: MenuBarModel implementado pela MainWindow; itens usam ids
+    confiáveis (kMenu* constexpr) e popup sensor _onMenuIndexChanged.
+  - Abas: juce::TabbedComponent com TabsAtTop; a guia Códigos é a
+    janela de "Lista de IDs" (menu Arquivo) e a Configuração é
+    "Programação".
+  - Tabelas: juce::TableListBox com ModelColumnSpan; colunas
+    redimensionáveis; double-click = "id para o clipboard".
+  - Diálogos: DialogWindow::showModalDialog (7 params) ao procurar
+    arquivo; AlertWindow::showMessageBoxAsync para mensagens;
+    MessageBoxOptions + showAsync para Salvar/Descartar/Cancelar
+    (índice do botão: 0=Salvar 1=Descartar 2=Cancelar).
+  - O target habilita JUCE_MODAL_LOOPS_PERMITTED=1 (CMakeLists).
+  - Ícones: resources/ProgMasterIcon.png via juce_add_gui_app
+    (ICON_BIG/ICON_SMALL) e juce_add_binary_data ->
+    BinaryData::ProgMasterIcon_png/...Size alimentam setIcon da janela.
+
+-----------------------------------------------------------------------
+6. TRAPPAÇAS / QUIRKS DOCUMENTADOS (MSVC + JUCE 8.0.15)
+-----------------------------------------------------------------------
+  - MSVC 14.44 dá C2911 p/ definições fora da classe de aninhadas
+    em alguns contextos -> cartões viraram classes friend no namespace
+    app (não aninhadas), declaradas em ConfiguratorTab.h.
+  - Component usa visibilityChanged() e NÃO visibleChanged.
+  - TextEditor não tem setSingleLine (single-line é padrão) e
+    getUndoManager() é privado -> usar undo()/redo() públicos.
+  - Viewport: setScrollBarsShown(true/false, ...) e updateLayout
+    foram revisados; NÃO existe setScrollBarsShownIfNeeded.
+  - String NÃO tem fromUTF16 -> CharPointer_UTF16 em JuceHelpers.
+  - FontOptions NÃO tem withTypefaceStyle; TextEditor::setFont usa
+    juce::Font(FontOptions(...)) (o ctor Font(name,style,size) antigo
+    é deprecated C4996).
+  - TabbedComponent exige orientação no ctor; sem setOutlineThickness.
+  - DialogWindow::showModalDialog tem 7 parâmetros exatos.
+  - JUCE 8.0.15 desliga modal loops por padrão (macro acima).
+
+-----------------------------------------------------------------------
+7. CODEPENDÊNCIAS DE ARQUIVO (o que dependencia o quê)
+-----------------------------------------------------------------------
+  ProgMasterApplication -> Settings, Log, PlaylistLocator, MainWindow
+  MainWindow            -> PlaylistConfigController (dono),
+                           EditorTab, ConfiguratorTab, CodesTab,
+                           LocatePlaylistDialog, PlaylistInstallation
+  ConfiguratorTab       -> readconf (ReadScope/Snapshots),
+                           app::ScopeCard/AfiliadasCard (friend)
+  CodesTab              -> FoldersXml, PlaylistInstallation
+  EditorTab             -> juce::TextEditor; dados via controller
+  PlaylistConfigController -> PlaylistIniDocument, PlaylistIni,
+                           TextFileIO, ReadingConfiguration
+  (Testes) tests\RulesTests -> readconf apenas (sem JUCE).
+
+-----------------------------------------------------------------------
+8. DADOS PERSISTIDOS E CODIFICAÇÕES
+-----------------------------------------------------------------------
+  %APPDATA%\ProgMaster\config.txt   UTF-8 SEM BOM (infra do usuário)
+  %APPDATA%\ProgMaster\log.txt      UTF-8 COM BOM (texto técnico)
+  Configuração antiga migrada de %APPDATA%\PlaylistComplementar.
+  playlist.ini LIDO/GRAVADO na codificação DETECTADA pelo TextFileIO
+  (UTF-8 c/ ou s/ BOM, UTF-16 LE/BE, ANSI quando impossível distinguir)
+  — após Salvar a codificação original é preservada.
+
+-----------------------------------------------------------------------
+9. CONSTRUÇÃO E TESTES
+-----------------------------------------------------------------------
+  cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+  cmake --build build --config Release --target ProgMaster ProgMasterCoreTests
+  -> 0 erros 0 warnings (/W4); ProgMaster.exe em build\ProgMaster_artefacts\Release\
+  -> ProgMasterCoreTests.exe 110/110 PASS  (build\Release\)
+
+  Observações: JUCE baixado por FetchContent (GIT_TAG 8.0.15 shallow);
+  CMake LANGUAGES C CXX; /utf-8; CRT estática (/MT); targets próprios
+  do projeto linkam apenas juce_gui_basics.
+
+-----------------------------------------------------------------------
+10. ROADMAP / PONTOS EM ABERTO
+-----------------------------------------------------------------------
+  - Suíte de testes de GUI (manual hoje) e validação por click do
+    callback MessageBoxOptions (0/1/2) — A DEFINIR.
+  - Ferramentas dedicadas para mapas/grades/relógios (Próxima etapa).
+  - Backups / identidade visual final (aguarda especificação).

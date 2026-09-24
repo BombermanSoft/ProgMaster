@@ -1,35 +1,51 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(ProgMaster
-    VERSION 0.1.0
-    DESCRIPTION "ProgMaster — complemento do sistema Playlist (Etapa 1)"
-    LANGUAGES CXX)
+    VERSION 0.2.0
+    DESCRIPTION "ProgMaster — complemento do sistema Playlist (Etapa 2)"
+    LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# O código-fonte é mantido em UTF-8. É essencial forçar o MSVC a interpretar
-# a origem como UTF-8, caso contrário literais com acentos ("Códigos",
+# O código-fonte é mantido em UTF-8. É essencial forçar o MSVC a interpretar a
+# origem como UTF-8, caso contrário literais com acentos ("Códigos",
 # "Não foi possível...") seriam decodificados incorretamente.
 if(MSVC)
-    add_compile_options(/W4 /utf-8)
+    add_compile_options(/utf-8)
 
-    # Vincula a CRT estaticamente (/MT e /MTd), de modo que o executável não
-    # dependa do redistribuível VC (vcruntime140.dll) — meta de distribuição
-    # em um único arquivo.
+    # Vinca a CRT estaticamente (/MT e /MTd), de modo que o executável não
+    # dependa do redistribuível VC — meta de distribuição em um único arquivo.
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 else()
     add_compile_options(-Wall -Wextra)
 endif()
 
-# WIN32 -> aplicação de interface gráfica (subsistema Windows), sem janela de console.
-add_executable(ProgMaster WIN32
-    src/main.cpp
+# ----------------------------------------------------------------------------
+# JUCE (obtido via FetchContent, GIT_TAG 8.0.15 — ver prompt da Etapa 2, §41)
+# ----------------------------------------------------------------------------
+include(FetchContent)
 
-    src/core/Application.cpp
-    src/core/Settings.cpp
+# Não queremos exemplos/extras do JUCE — apenas os módulos que usaremos.
+set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
+set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(JUCE_BUILD_SHOWCASE OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    JUCE
+    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+    GIT_TAG        8.0.15
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(JUCE)
+
+# ----------------------------------------------------------------------------
+# Núcleo (independe de JUCE) + camada Etapa 2 (leitura dos formatos)
+# ----------------------------------------------------------------------------
+set(PROGMASTER_CORE
     src/core/Log.cpp
+    src/core/Settings.cpp
     src/core/TextFileIO.cpp
 
     src/playlist/PlaylistLocator.cpp
@@ -39,37 +55,72 @@ add_executable(ProgMaster WIN32
 
     src/models/FolderEntry.cpp
 
-    src/ui/MainWindow.cpp
-    src/ui/IniEditorView.cpp
-    src/ui/CodesPageView.cpp
-    src/ui/LocatePlaylistDialog.cpp
-
-    # Recurso do ícone da aplicação (bomba), embutido no executável.
-    resources/ProgMaster.rc
+    src/readconf/FormatRules.cpp
+    src/readconf/PlaylistIniDocument.cpp
+    src/readconf/PlaylistFileLocator.cpp
+    src/readconf/ReadingConfiguration.cpp
 )
 
-target_compile_definitions(ProgMaster PRIVATE
-    UNICODE
-    _UNICODE
-    WIN32_LEAN_AND_MEAN
-    NOMINMAX
+# ----------------------------------------------------------------------------
+# Aplicação (interface JUCE da Etapa 2)
+# ----------------------------------------------------------------------------
+juce_add_gui_app(ProgMaster
+    COMPANY_NAME "BombermanSoft"
+    PRODUCT_NAME "ProgMaster"
+    VERSION 0.2.0
+    ICON_BIG   resources/ProgMasterIcon.png
+    ICON_SMALL resources/ProgMasterIcon.png
+    NEEDS_WEB_BROWSER  OFF
+    NEEDS_MIDI_INPUT   OFF
+    NEEDS_MIDI_OUTPUT  OFF
 )
 
-# Permite os includes relativos à pasta src (ex.: "playlist/FoldersXml.h").
+target_sources(ProgMaster PRIVATE
+    ${PROGMASTER_CORE}
+    src/app/ProgMasterApplication.cpp
+    src/app/MainWindow.cpp
+    src/app/ConfiguratorTab.cpp
+    src/app/EditorTab.cpp
+    src/app/CodesTab.cpp
+    src/app/LocatePlaylistDialog.cpp
+    src/app/PlaylistConfigController.cpp
+)
+
+# Recurso embutido: ícone da janela (PNG) e rótulo da aplicação.
+juce_add_binary_data(ProgMasterResources
+    SOURCES resources/ProgMasterIcon.png
+)
+target_link_libraries(ProgMaster PRIVATE ProgMasterResources)
+
 target_include_directories(ProgMaster PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/resources
 )
 
-# Dependências de sistema (todas presentes em qualquer Windows moderno,
-# o que mantém a meta de distribuição em um único executável).
-target_link_libraries(ProgMaster PRIVATE
-    comctl32    # Tab control e ListView
-    comdlg32    # GetOpenFileNameW (seleção do Playlist.exe)
-    shell32     # SHGetFolderPathW (pasta AppData)
-)
+# Módulo de interface do JUCE (depende de core/events/graphics).
+target_link_libraries(ProgMaster PRIVATE juce_gui_basics)
 
-# No MinGW (GCC) é necessário informar o ponto de entrada wWinMain.
-if(MINGW)
-    target_link_options(ProgMaster PRIVATE -municode)
+# O JUCE 8.0.15 desativa janelas modais por padrão (JUCE_MODAL_LOOPS_PERMITTED
+# = 0). Na área de trabalho queremos o comportamento clássico (dialogos e
+# seletores de arquivo modais), então reativamos a flag.
+target_compile_definitions(ProgMaster PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1)
+
+if(MSVC)
+    # /W4 apenas no nosso código: os módulos do JUCE são compilados com a
+    # configuração própria deles e gerariam ruído desnecessário aqui.
+    target_compile_options(ProgMaster PRIVATE /W4)
+endif()
+
+# ----------------------------------------------------------------------------
+# Testes do núcleo (sem JUCE — são regras puras)
+# ----------------------------------------------------------------------------
+
+add_executable(ProgMasterCoreTests
+    ${PROGMASTER_CORE}
+    src/readconf/tests/RulesTests.cpp
+)
+target_include_directories(ProgMasterCoreTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+    target_compile_options(ProgMasterCoreTests PRIVATE /W4)
 endif()
