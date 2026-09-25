@@ -15,28 +15,40 @@
 // estas regras: tudo passa por aqui. O componente é PURO: não acessa disco,
 // não depende de Windows, não conhece a instalação.
 //
-// Tabela de mapeamento (sintaxe que o Playlist entende, conforme documentado
-// no prompt §4, §25 e §28 e reapresentada obrigatoriamente no doc):
+// Tabela de mapeamento (sintaxe que o Playlist entende, conforme a instalação
+// real de referência — C:\Playlist_oficial\pgm\PLAYLIST.ini — e os ajustes
+// pedidos pelo usuário na Fase 2):
 //
 //   BLOCO COMERCIAL:
 //     AUTO              ->  FORMATO=AUTO
 //     Mapa/Grade (único)->  FORMATO=TXT1 ARQUIVO=MAPAS\Mapa.txt
-//     Semanal           ->  FORMATO=TXT1 ARQUIVO=MAPAS\Mapa%w.txt
+//     Semanal           ->  FORMATO=TXT1 ARQUIVO=MAPAS\Mapa%a.txt
 //     Commercial Dia    ->  FORMATO=TXT1 ARQUIVO=MAPAS\Mapa%d
-//     Commercial Data   ->  FORMATO=TXT1 ARQUIVO=MAPAS\Mapa%d-%m%Y
+//     Commercial Data   ->  FORMATO=TXT1 ARQUIVO=MAPAS\Mapa%d-%m-%Y
+//     Planner           ->  FORMATO=TXT1 ARQUIVO=MAPAS\%d-%m-%Y.TXT
 //   BLOCO MUSICAL:
 //     AUTO              ->  FORMATO=AUTO
 //     Mapa/Grade (único)->  FORMATO=TXT1 ARQUIVO=grades\Grade.txt
-//     Semanal           ->  FORMATO=TXT1 ARQUIVO=grades\Grade%w.txt
-//     Maker             ->  FORMATO=TXT1 ARQUIVO=grades\%d-%m-%y
-//   RELÓGIO COMERCIAL / RELÓGIO MUSICAL:
+//     Semanal           ->  FORMATO=TXT1 ARQUIVO=grades\Grade%a.txt
+//     Maker             ->  FORMATO=TXT1 ARQUIVO=GRADES\%d-%m-%Y.TXT
+//   RELÓGIO COMERCIAL:
 //     Único             ->  FORMATO=TXT1 ARQUIVO=Mapas\Relogio.txt
 //     Semanal           ->  FORMATO=TXT1 ARQUIVO=Mapas\Relogio%a.txt
+//   RELÓGIO MUSICAL:
+//     Único             ->  FORMATO=TXT1 ARQUIVO=GRADES\Relogio.txt
+//     Semanal           ->  FORMATO=TXT1 ARQUIVO=GRADES\Relogio%a.txt
 //
-// Leitura (interpretação) é tolerantE: além dos padrões acima, reconhece
-// também Mapa%a (semana abreviado) e a grafia de dias por extenso
-// (MapaSeg.txt..MapaDom.txt). O que não reconhece NUNCA é apagado — é
-// preservado no documento (retornado como "não reconhecido").
+// Em TODAS as seções a ordem das chaves é FORMATO antes de ARQUIVO (abaixo do
+// cabeçalho da seção, acima do arquivo), como no arquivo real de referência.
+//
+// Leitura (interpretação) é tolerante: além dos padrões acima, reconhece
+// também Mapa%a (semana abreviado), a grafia de dias por extenso
+// (MapaSeg.txt..MapaDom.txt), o padrão de data antigo sem hífen "%d-%m%Y" e o
+// Maker antigo "%d-%m-%y". O que não reconhece NUNCA é apagado — é preservado
+// no documento (retornado como "não reconhecido").
+//
+// Afiliadas ([AFILIADAS]): a chave é o NOME configurável da afiliada
+// (AFILIADA é apenas o exemplo do manual). Sintaxe: NOME = endereco:porta.
 // ============================================================================
 
 namespace readconf {
@@ -63,6 +75,7 @@ enum class FormatOption {
     Weekly,           // "Semanal"
     CommercialDay,    // "Commercial Dia"   (somente Comercial)
     CommercialDate,   // "Commercial Data"  (somente Comercial)
+    Planner,          // "Planner"          (somente Comercial)
     Maker,            // "Maker"            (somente Musical)
     Unknown,          // texto atual do playlist.ini não reconhecido
 };
@@ -122,7 +135,8 @@ GeneratedFormat generate(ConfigScope scope, FormatOption option);
 
 // Nomes-de-dia da semana em PT-BR, na ordem real e com as grafias usadas
 // pelo Playlist para arquivos semanais (MapaSeg, MapaTer, MapaQua, MapaQui,
-// MapaSex, MapaSab, MapaDom).
+// MapaSex, MapaSáb, MapaDom). A grafia canônica do sábado é "Sáb" (Manual);
+// a comparação/tolerância também enxerga a grafia antiga "Sab" (ASCII).
 const std::vector<std::wstring>& weekdayFileNames();
 
 // Nomes de arquivo esperados para a opção, em ordem de prioridade da regra

@@ -141,9 +141,9 @@ juce::PopupMenu MainWindow::getMenuForIndex(int topLevelMenuIndex,
         menu.addItem(IDM_FILE_EXIT, "Sair");
         break;
     case 1: // Editar
-        menu.addItem(IDM_EDIT_PROGRAMACAO, "Programação (playlist.ini)");
-        menu.addItem(IDM_EDIT_MAPA_COMERCIAL, "Mapa Comercial (mapas\\Mapas.txt)");
-        menu.addItem(IDM_EDIT_GRADES, "Grades Musicais (grades\\Grades.txt)");
+        menu.addItem(IDM_EDIT_PROGRAMACAO, "Programação");
+        menu.addItem(IDM_EDIT_MAPA_COMERCIAL, "Mapa Comercial");
+        menu.addItem(IDM_EDIT_GRADES, "Grades Musicais");
         menu.addSeparator();
         menu.addItem(IDM_EDIT_RELOGIO_COMERCIAL, "Relógio Comercial");
         menu.addItem(IDM_EDIT_RELOGIO_MUSICAL, "Relógio Musical");
@@ -239,6 +239,16 @@ void MainWindow::refreshFromLocator()
     m_controller.load();
     m_configTab.refreshFromController();
     m_codesTab.reload();
+
+    // O editor começa sem nenhuma sub-aba: ao iniciar (ou ao trocar de
+    // localização), abre logo o playlist.ini para o usuário ver o conteúdo
+    // já preenchido no bloco de notas — em vez de uma tela vazia e a mensagem
+    // "arquivo não encontrado". Se já havia abas abertas, apenas sincroniza.
+    if (!m_editorTab.hasOpenPages()) {
+        m_editorTab.openFile(EditorTab::FileKind::PlaylistIni);
+    } else {
+        m_editorTab.refreshIniFromController();
+    }
 
     std::wstring status;
     if (m_controller.path().empty()) {

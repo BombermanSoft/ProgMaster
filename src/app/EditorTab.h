@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <vector>
 
 #include "playlist/PlaylistIni.h"
 
@@ -13,12 +14,34 @@ class PlaylistConfigController;
 
 class PlaylistInstallation;
 
+// Tab predefinida do editor: expõe o callback de troca de aba (a versão do
+// JUCE desta base só oferece o método virtual currentTabChanged).
+class EditorTabTabs final : public juce::TabbedComponent {
+public:
+    EditorTabTabs()
+        : juce::TabbedComponent(juce::TabbedButtonBar::TabsAtTop)
+    {
+    }
+    std::function<void()> onTabChanged;
+    void currentTabChanged(int newCurrentTabIndex,
+                           const juce::String& newCurrentTabName) override
+    {
+        juce::TabbedComponent::currentTabChanged(newCurrentTabIndex,
+                                                 newCurrentTabName);
+        if (onTabChanged) {
+            onTabChanged();
+        }
+    }
+};
+
 // Tab "Editor": bloco de notas textual dos arquivos de programação.
 //
-// Mantém o comportamento da Etapa 1 (Salvar / Desfazer / Refazer, arquivo
-// atual exibido) e estende o menu Editar com Relógio Comercial/Relógio
-// Musical (Etapa 2). O playlist.ini, quando aberto aqui, usa o MESMO
-// documento em memória do controlador de configuração (sincronização).
+// Para cada item do menu Editar, resolve os arquivos seguindo a configuração
+// atual do playlist.ini: Único -> UMA aba com o arquivo único
+// (Mapa.txt/Grade.txt/Relogio.txt); Semanal -> SETE abas, uma por dia da
+// semana (MapaSeg.txt..MapaDom.txt, etc.), permitindo criar/editá-los. O
+// playlist.ini, quando aberto aqui, usa o MESMO documento em memória do
+// controlador de configuração (sincronização bidirecional ao entrar/sair).
 class EditorTab final : public juce::Component {
 public:
     // Arquivo textual em edição nesta aba.
@@ -32,14 +55,21 @@ public:
 
     EditorTab(app::PlaylistConfigController& controller,
               PlaylistInstallation& installation);
-    ~EditorTab() override = default;
+    ~EditorTab() override;
 
-    // Abre um arquivo na aba (preenche o editor com o conteúdo atual).
+    // Abre um conjunto de arquivos na aba (preenche as sub-abas conforme a
+    // configuração: 1 arquivo único ou os 7 arquivos semanais).
     void openFile(FileKind file);
-    // Recarrega o arquivo atual do disco (Descartar alterações).
+    // Recarrega os arquivos abertos do disco (Descartar alterações).
     void reopenFromDisk();
-    // Salva o arquivo atual (menu Arquivo/Salvar também).
+    // Salva o arquivo ativo (menu Arquivo/Salvar também).
     bool saveCurrentFile();
+
+    // Puxa o conteúdo atual do playlist.ini para a sub-aba (usado após o
+    // controlador recarregar o documento do disco).
+    void refreshIniFromController();
+    // True quando nenhuma sub-aba foi aberta ainda (estado inicial).
+    bool hasOpenPages() const { return !m_pages.empty(); }
 
     bool hasUnsavedChanges() const;
     std::wstring currentFileName() const;
@@ -53,28 +83,35 @@ public:
     void visibilityChanged() override;
 
 private:
-    void loadIntoEditor();
+    class FilePage;
+    struct Spec {
+        std::filesystem::path path;
+        std::wstring displayName;
+        bool isIni = false;
+    };
+
+    void rebuildPages();
+    std::vector<Spec> resolveSpecs(FileKind file) const;
+    FilePage* currentPage() const;
+    FilePage* iniPage() const;
+    void syncIniPageFromController();
+    void onPageTextChanged(FilePage& page);
     void setDirty(bool dirty);
     void updateButtons();
     void updateStatus();
 
-    // Serviços de arquivo (o playlist.ini vive no controlador, os demais aqui).
+    // Serviços (o playlist.ini vive no controlador, os demais em FilePage).
     app::PlaylistConfigController& m_controller;
     PlaylistInstallation& m_installation;
-    PlaylistIni m_mapas;
-    PlaylistIni m_grades;
-    PlaylistIni m_relogioComercial;
-    PlaylistIni m_relogioMusical;
 
+    std::vector<std::unique_ptr<FilePage>> m_pages;
     FileKind m_current = FileKind::PlaylistIni;
-    bool m_hasFile = false;
     bool m_dirty = false;
-    bool m_updatingUi = false; // evita marcar "sujo" ao trocar texto pelo programa
 
     juce::Label m_fileLabel;
     juce::TextButton m_saveButton{ "Salvar" };
     juce::TextButton m_undoButton{ "Desfazer" };
     juce::TextButton m_redoButton{ "Refazer" };
-    juce::TextEditor m_editor;
+    EditorTabTabs m_fileTabs;
     juce::Label m_statusLabel;
 };

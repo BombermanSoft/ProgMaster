@@ -36,6 +36,44 @@ bool iendsWith(const std::wstring& s, const std::wstring& suffix)
     return iequals(s.substr(s.size() - suffix.size()), suffix);
 }
 
+// Dobra acentos PT-BR e caixa para comparação tolerante: "Sáb" == "Sab"
+// (o Manual escreve com acento; arquivos antigos no disco usam "Sab").
+wchar_t foldAccent(wchar_t c)
+{
+    switch (c) {
+    case L'á': case L'à': case L'â': case L'ã': case L'ä': return L'a';
+    case L'é': case L'è': case L'ê': case L'ë': return L'e';
+    case L'í': case L'ì': case L'î': case L'ï': return L'i';
+    case L'ó': case L'ò': case L'ô': case L'õ': case L'ö': return L'o';
+    case L'ú': case L'ù': case L'û': case L'ü': return L'u';
+    case L'ç': return L'c';
+    default: return std::towlower(c);
+    }
+}
+
+// Igualdade ignorando caixa E acentos (acordes de tamanho igual).
+bool equivalence(const std::wstring& a, const std::wstring& b)
+{
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (foldAccent(a[i]) != foldAccent(b[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// termina com (sufixo) ignorando caixa E acentos.
+bool iendsWithTolerant(const std::wstring& s, const std::wstring& suffix)
+{
+    if (s.size() < suffix.size()) {
+        return false;
+    }
+    return equivalence(s.substr(s.size() - suffix.size()), suffix);
+}
+
 // Extrai a parte final (nome do arquivo) de um valor ARQUIVO, ignorando
 // pastas separadas por '\' ou '/'.
 std::wstring fileNamePartOf(const std::wstring& arquivoValue)
@@ -47,30 +85,35 @@ std::wstring fileNamePartOf(const std::wstring& arquivoValue)
     return arquivoValue.substr(slash + 1);
 }
 
-// Grams semanais em português, na ordem Seg..Dom, como "Seg" (os arquivos
-// reais são MapaSeg.txt, GradeTer.txt, etc.).
+// Nomes de dia da semana em português, na ordem Seg..Dom, como o Playlist os
+// grava nos arquivos semanais (MapaSeg.txt, GradeTer.txt, RelogioSáb.txt).
+// A grafia canônica usa "Sáb" (Manual); a comparação é tolerante a acentos
+// para também reconhecer arquivos antigos gravados como "Sab" (ASCII).
 const std::vector<std::wstring>& weekdayNames()
 {
     static const std::vector<std::wstring> names = {
-        L"Seg", L"Ter", L"Qua", L"Qui", L"Sex", L"Sab", L"Dom",
+        L"Seg", L"Ter", L"Qua", L"Qui", L"Sex", L"Sáb", L"Dom",
     };
     return names;
 }
 
-// npad do mês pra o padrão de data comercial: %d-%m%Y.
-bool isDatePattern(const std::wstring& token)
+// Padrões de data no valor ARQUIVO. No Comercial, COM prefixo "Mapa" a data é
+// "Commercial Data" (Mapa%d-%m-%Y); SEM prefixo é "Planner" (\%d-%m-%Y.TXT).
+// No Musical, SEM prefixo a data é "Maker" (GRADES\%d-%m-%Y.TXT). O padrão
+// antigo "%d-%m%Y" (sem hífen) e "%d-%m-%y" (ano 2 díg) ainda são lidos.
+bool isDateToken(const std::wstring& token)
 {
-    return iequals(token, L"%d-%m%Y");
+    return iequals(token, L"%d-%m-%Y") || iequals(token, L"%d-%m%Y");
+}
+
+bool isOldMakerToken(const std::wstring& token)
+{
+    return iequals(token, L"%d-%m-%y");
 }
 
 bool isDayPattern(const std::wstring& token)
 {
     return iequals(token, L"%d");
-}
-
-bool isMakerPattern(const std::wstring& token)
-{
-    return iequals(token, L"%d-%m-%y");
 }
 
 bool isWeeklyToken(const std::wstring& token)
@@ -79,15 +122,16 @@ bool isWeeklyToken(const std::wstring& token)
 }
 
 // Verifica se o nome do arquivo termina com "<Prefix><dia da semana>" (com
-// ou sem extensão). Devolve o nome do dia quando reconhecido.
+// ou sem extensão). Devolve o nome do dia quando reconhecido. A comparação é
+// tolerante a caixa E acentos ("RelogioSab.txt" reconhece o dia "Sáb").
 bool matchWeeklyLiteral(const std::wstring& fileName,
                         const std::wstring& prefix,
                         std::wstring& outDay)
 {
     for (const std::wstring& day : weekdayNames()) {
         std::wstring candidate = prefix + day;
-        if (iendsWith(fileName, candidate) ||
-            iendsWith(fileName, candidate + L".txt")) {
+        if (iendsWithTolerant(fileName, candidate) ||
+            iendsWithTolerant(fileName, candidate + L".txt")) {
             outDay = day;
             return true;
         }
@@ -122,42 +166,57 @@ std::wstring extractToken(const std::wstring& fileName,
     return base;
 }
 
-// Busca o parâmetro de uma opção dentro do posto:
-// - base == "%d-%m%Y" -> Date
-// - base == "%d"      -> Day
-// - base == "%d-%m-%y"-> Maker
-// - base == "%w"/"%a" -> Weekly
-FormatMatch matchToken(ConfigScope scope, const std::wstring& base)
+// Busca o parâmetro de uma opção dentro do posto. hasPrefix indica se o
+// nome do ARQUIVO começava com o prefixo do escopo (Mapa/Grade/Relogio) —
+// o que separa "Commercial Data" (com prefixo) de "Planner" (sem prefixo,
+// no Comercial) e de "Maker" (sem prefixo, no Musical).
+//   * "%d-%m-%Y" com prefixo                      -> Commercial Date
+//   * "%d-%m-%Y" sem prefixo no Comercial         -> Planner
+//   * "%d-%m-%Y" sem prefixo no Musical           -> Maker
+//   * "%d-%m-%y" (Maker antigo, Musical)          -> Maker
+//   * "%d-%m%Y" (antigo, Comercial com prefixo)   -> Commercial Date
+//   * "%d"        -> Commercial Dia
+//   * "%w"/"%a"   -> Weekly
+FormatMatch matchToken(ConfigScope scope, const std::wstring& base,
+                       bool hasPrefix)
 {
     FormatMatch match;
-    if (isDatePattern(base)) {
-        match.option = FormatOption::CommercialDate;
-        match.matchedToken = base;
-    } else if (isDayPattern(base)) {
-        match.option = FormatOption::CommercialDay;
-        match.matchedToken = base;
-    } else if (isMakerPattern(base)) {
-        match.option = FormatOption::Maker;
-        match.matchedToken = base;
-    } else if (isWeeklyToken(base)) {
+    if (isDateToken(base)) {
+        if (scope == ConfigScope::Comercial) {
+            match.option = hasPrefix ? FormatOption::CommercialDate
+                                     : FormatOption::Planner;
+            match.matchedToken = base;
+            return match;
+        }
+        if (scope == ConfigScope::Musical) {
+            match.option = FormatOption::Maker;
+            match.matchedToken = base;
+            return match;
+        }
+        return {};
+    }
+    if (isOldMakerToken(base)) {
+        if (scope == ConfigScope::Musical) {
+            match.option = FormatOption::Maker;
+            match.matchedToken = base;
+            return match;
+        }
+        return {};
+    }
+    if (isDayPattern(base)) {
+        if (scope == ConfigScope::Comercial) {
+            match.option = FormatOption::CommercialDay;
+            match.matchedToken = base;
+            return match;
+        }
+        return {};
+    }
+    if (isWeeklyToken(base)) {
         match.option = FormatOption::Weekly;
         match.matchedToken = base;
+        return match;
     }
-
-    // Day/Date só se aplicam ao Comercial; Maker só ao Musical. Se detectado
-    // fora do escopo, devolve Unknown (não invalida a chave: valor é
-    // preservado).
-    if (match.option == FormatOption::CommercialDay ||
-        match.option == FormatOption::CommercialDate) {
-        if (scope != ConfigScope::Comercial) {
-            match = FormatMatch{};
-        }
-    } else if (match.option == FormatOption::Maker) {
-        if (scope != ConfigScope::Musical) {
-            match = FormatMatch{};
-        }
-    }
-    return match;
+    return {};
 }
 
 bool sectionHasSingleFile(const std::wstring& fileName,
@@ -198,7 +257,8 @@ std::vector<FormatOption> optionsForFormat(ConfigScope scope)
     switch (scope) {
     case ConfigScope::Comercial:
         return { FormatOption::Auto, FormatOption::Single, FormatOption::Weekly,
-                 FormatOption::CommercialDay, FormatOption::CommercialDate };
+                 FormatOption::CommercialDay, FormatOption::CommercialDate,
+                 FormatOption::Planner };
     case ConfigScope::Musical:
         return { FormatOption::Auto, FormatOption::Single, FormatOption::Weekly,
                  FormatOption::Maker };
@@ -219,6 +279,7 @@ std::wstring displayName(FormatOption option)
     case FormatOption::Weekly:         return L"Semanal";
     case FormatOption::CommercialDay:  return L"Commercial Dia";
     case FormatOption::CommercialDate: return L"Commercial Data";
+    case FormatOption::Planner:        return L"Planner";
     case FormatOption::Maker:          return L"Maker";
     case FormatOption::Unknown:        return L"Não reconhecido";
     }
@@ -295,12 +356,14 @@ FormatMatch interpretArquivo(ConfigScope scope, const std::wstring& arquivoValue
         return m;
     }
 
-    // 3) Token variável (Mapa%w.txt, Mapa%d, Mapa%d-%m%Y, Grade%w, %d-%m-%y).
+    // 3) Token variável (Mapa%w.txt, Mapa%d, Mapa%d-%m-%Y, Grade%w,
+    //    %d-%m-%Y, %d-%m-%y).
     if (iendsWith(fileName, prefix) || istartsWith(fileName, prefix) ||
         istartsWith(fileName, L"%")) {
+        const bool hasPrefix = istartsWith(fileName, prefix);
         const std::wstring token = extractToken(fileName, prefix);
         if (!token.empty()) {
-            return matchToken(scope, token);
+            return matchToken(scope, token, hasPrefix);
         }
     }
 
@@ -329,17 +392,17 @@ GeneratedFormat generate(ConfigScope scope, FormatOption option)
         switch (scope) {
         case ConfigScope::Comercial:        out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa.txt"); break;
         case ConfigScope::Musical:          out.lines.push_back(L"ARQUIVO=grades\\Grade.txt"); break;
-        case ConfigScope::RelogioComercial:
-        case ConfigScope::RelogioMusical:   out.lines.push_back(L"ARQUIVO=Mapas\\Relogio.txt"); break;
+        case ConfigScope::RelogioComercial: out.lines.push_back(L"ARQUIVO=Mapas\\Relogio.txt"); break;
+        case ConfigScope::RelogioMusical:   out.lines.push_back(L"ARQUIVO=GRADES\\Relogio.txt"); break;
         case ConfigScope::Afiliadas:        out.lines.clear(); break;
         }
         break;
     case FormatOption::Weekly:
         switch (scope) {
-        case ConfigScope::Comercial:        out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%w.txt"); break;
-        case ConfigScope::Musical:          out.lines.push_back(L"ARQUIVO=grades\\Grade%w.txt"); break;
-        case ConfigScope::RelogioComercial:
-        case ConfigScope::RelogioMusical:   out.lines.push_back(L"ARQUIVO=Mapas\\Relogio%a.txt"); break;
+        case ConfigScope::Comercial:        out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%a.txt"); break;
+        case ConfigScope::Musical:          out.lines.push_back(L"ARQUIVO=grades\\Grade%a.txt"); break;
+        case ConfigScope::RelogioComercial: out.lines.push_back(L"ARQUIVO=Mapas\\Relogio%a.txt"); break;
+        case ConfigScope::RelogioMusical:   out.lines.push_back(L"ARQUIVO=GRADES\\Relogio%a.txt"); break;
         case ConfigScope::Afiliadas:        out.lines.clear(); break;
         }
         break;
@@ -352,14 +415,21 @@ GeneratedFormat generate(ConfigScope scope, FormatOption option)
         break;
     case FormatOption::CommercialDate:
         if (scope == ConfigScope::Comercial) {
-            out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%d-%m%Y");
+            out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y");
+        } else {
+            out.lines.clear();
+        }
+        break;
+    case FormatOption::Planner:
+        if (scope == ConfigScope::Comercial) {
+            out.lines.push_back(L"ARQUIVO=MAPAS\\%d-%m-%Y.TXT");
         } else {
             out.lines.clear();
         }
         break;
     case FormatOption::Maker:
         if (scope == ConfigScope::Musical) {
-            out.lines.push_back(L"ARQUIVO=grades\\%d-%m-%y");
+            out.lines.push_back(L"ARQUIVO=GRADES\\%d-%m-%Y.TXT");
         } else {
             out.lines.clear();
         }
@@ -411,20 +481,23 @@ std::vector<std::wstring> expectedFileBases(ConfigScope scope,
     case FormatOption::CommercialDate:
         bases.push_back(L"MapaDD-MM-AAAA");
         break;
+    case FormatOption::Planner:
+        bases.push_back(L"DD-MM-AAAA.TXT");
+        break;
     case FormatOption::Maker:
-        bases.push_back(L"DD-MM-AA");
+        bases.push_back(L"DD-MM-AAAA.TXT");
         break;
     case FormatOption::Auto:
     case FormatOption::Unknown:
         switch (scope) {
         case ConfigScope::Comercial:
             bases = { L"MapaDD-MM-AAAA", L"MapaDD", L"MapaSeg", L"MapaTer",
-                      L"MapaQua", L"MapaQui", L"MapaSex", L"MapaSab", L"MapaDom",
+                      L"MapaQua", L"MapaQui", L"MapaSex", L"MapaSáb", L"MapaDom",
                       L"Mapa.txt" };
             break;
         case ConfigScope::Musical:
             bases = { L"DD-MM-AAAA", L"GradeDD", L"GradeSeg", L"GradeTer",
-                      L"GradeQua", L"GradeQui", L"GradeSex", L"GradeSab",
+                      L"GradeQua", L"GradeQui", L"GradeSex", L"GradeSáb",
                       L"GradeDom", L"Grade.txt" };
             break;
         default:

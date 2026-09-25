@@ -20,12 +20,13 @@ class AfiliadasCard;
 //
 // Cada cartão mostra a opção de formato atual (ComboBox), os arquivos de
 // programação esperados (✓/✗ no disco) e permite que o usuário altere tudo.
-// As afiliadas são listadas com edição de endereço/porta/ativa e remoção.
+// As afiliadas são listadas com edição de nome/endereço/porta/ativa e
+// remoção.
 //
 // Alterações ficam APENAS em memória (no PlaylistConfigController) até o
-// SALVAR. O botão com o desenho de lápis ("pincel"), no canto superior do
-// cartão de configuração, alterna a visualização para o bloco de notas
-// textual do playlist.ini e vice-versa (sincronizado em memória).
+// SALVAR. O botão "✎ Visualizar como texto" grava o documento em disco (sem
+// validação) e abre o próprio Bloco de Notas do Windows para edição manual;
+// ao voltar para esta guia, o arquivo é relido do disco.
 class ConfiguratorTab final : public juce::Component {
 public:
     explicit ConfiguratorTab(PlaylistConfigController& controller);
@@ -44,11 +45,17 @@ public:
     void updateDirtyLabel();
 
 private:
+    // Abre o playlist.ini no Bloco de Notas do Windows (grava antes, sem
+    // validação, para o editor mostrar o estado atual em memória).
+    void openInNotepad();
+
     // Aplicou uma opção no ComboBox de um cartão.
     void onOptionChanged(readconf::ConfigScope scope,
                          readconf::FormatOption option);
     // Criou configuração ausente de um escopo ("+ Adicionar").
     void onAddScope(readconf::ConfigScope scope);
+    // Removeu a seção inteira de um escopo (botão "Remover").
+    void onRemoveScope(readconf::ConfigScope scope);
     // Afiliadas: sincronização de uma linha / remoção / adição.
     void onRowChanged(size_t position);
     void onRemoveAfiliada(size_t position);
@@ -74,9 +81,8 @@ private:
     juce::Label m_headerLabel;   // playlist.ini -> caminho
     juce::Label m_dirtyLabel;    // "alterações não salvas" / salvo
 
-    juce::ToggleButton m_textModeButton;  // lápis: visual <-> texto
-    bool m_textMode = false;
-    juce::TextEditor m_textEditor;        // bloco de notas textual (visual <-> texto)
+    juce::TextButton m_textModeButton;  // "✎ Visualizar como texto" (Bloco de Notas)
+    bool m_reloadFromDiskOnVisible = false; // reler após editar no Bloco de Notas
     juce::Viewport m_visualArea;          // cartões
 
     juce::TextButton m_saveButton{ "Salvar playlist.ini" };

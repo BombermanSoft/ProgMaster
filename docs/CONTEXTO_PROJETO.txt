@@ -53,15 +53,21 @@ B.2. Implementado (Etapa 2)
       reconhecimento é TOLERANTE a variações reais do arquivo: seções com
       acento ("[RELÓGIO COMERCIAL]" = "RELOGIO"), valores entre aspas
       ("ARQUIVO=\"Mapas\\Mapa.txt\""), grafia de dias por extenso e
-      tokens %w/%a/%d/%d-%m%Y.
+      tokens %a/%d/%d-%m-%Y (o antigo %w e o %d-%m%Y sem hífen ainda são
+      lidos; %d-%m-%y é lido como Maker antigo).
   [x] Guia "Configuração": cartão por escopo com ComboBox do formato,
       status "configurado/não configurado/não reconhecido", arquivos
       esperados (✓/✗ no disco) e botão "+ Adicionar estilo";
-  [x] Cartão [AFILIADAS]: lista com endereço | porta | ativa | remover,
-      botão "+ Adicionar afiliada" e "Adicionar afiliadas" (cria a
-      seção); validação das portas ao Salvar;
-  [x] Alternância Visual <-> Texto (botão lápis): mesmo documento em
-      memória; o texto digitado vira o documento e vice-versa;
+  [x] Cartão [AFILIADAS]: lista com nome (a CHAVE da linha — configurável,
+      ex.: "TESTE = 192.168.0.2:3030") | endereço | porta | ativa | remover,
+      botões "+ Adicionar afiliada" e "Adicionar afiliadas" (cria a seção);
+      validação de nome/endereço/porta ao Salvar;
+  [x] Botão "✎ Visualizar como texto": grava o documento em disco (sem
+      validação) e abre o playlist.ini no Bloco de Notas do Windows; ao
+      voltar à guia, o arquivo é relido do disco (as edições externas — e
+      seções removidas lá — são reconhecidas);
+  [x] Botão "Remover" em TODOS os cartões: apaga a seção inteira do
+      escopo ([BLOCO ...] / [RELOGIO ...] / [AFILIADAS]);
   [x] Alterações ficam SOMENTE em memória (PlaylistConfigController) até
       o Salvar; Salvar valida, serializa preservando o resto e grava na
       codificação original;
@@ -173,9 +179,13 @@ E. EXPLICAÇÃO DAS PEÇAS-CHAVE (POR MÓDULO)
 -----------------------------------------------------------------------
 E.1. readconf\FormatRules
   - scopeDisplayName, optionsForFormat/displayName: o formato de cada
-    escopo é a "linha ARQUIVO" esperada (ex.: [BLOCO COMERCIAL] ->
-    mapas\Mapa.txt; [BLOCO MUSICAL] -> grades\Grade.txt; relógios ->
-    Relogio.txt / Relogio<dia>::txt; [AFILIADAS] -> ...).
+    escopo é a "linha ARQUIVO" esperada, gerada na ordem FORMATO antes
+    de ARQUIVO (formato TXT1 em 1º lugar; ex.: [BLOCO COMERCIAL] ->
+    mapas\Mapa.txt / Mapa%a.txt / Mapa%d / Mapa%d-%m-%Y / %d-%m-%Y.TXT
+    (Planner); [BLOCO MUSICAL] -> grades\Grade.txt / Grade%a.txt /
+    GRADES\%d-%m-%Y.TXT (Maker); [RELOGIO COMERCIAL] -> Mapas\Relogio.txt
+    / Relogio%a.txt; [RELOGIO MUSICAL] -> GRADES\Relogio.txt /
+    GRADES\Relogio%a.txt).
   - Formato = combinação de arquivo (token) e layout reconhecido;
     Unknown preserva o texto original ao salvar.
 
@@ -202,9 +212,10 @@ E.3. app\PlaylistConfigController
   - load() / save() (valida + serializa + grava na codificação
     original via PlaylistIni/TextFileIO); isDirty/markClean;
     applyOption(escopo, formato); addMissingConfiguration;
-    addAfiliada/updateAfiliada/removeAfiliada; currentText()/
-    setTextFromEditor() para o modo texto; scopes()/afiliadas()
-    para a guia visual.
+    addAfiliada/updateAfiliada/removeAfiliada (com NOME = a chave);
+    removeScope(escopo); flushPendingToDisk() (grava sem validação,
+    para o Bloco de Notas); scopes()/afiliadas() para a guia visual;
+    currentText()/setTextFromEditor() (guia Editor).
   - Nunca grava parcialmente: se a validação falhar, nada é escrito
     e o erro técnico vai para o log.
 
@@ -215,7 +226,9 @@ E.4. app\MainWindow e guias
     Relógio Comercial, Relógio Musical.
   - Guia Editor: editor mono-espaçado com Salvar/Desfazer/Refazer;
     o playlist.ini usa o MESMO documento do controlador.
-  - Guia Configuração: cartões (ver C.4) + modo texto alternável.
+  - Guia Configuração: cartões (ver C.4) + "Visualizar como texto" abre
+    o playlist.ini no Bloco de Notas do Windows (grava antes, relê ao
+    voltar).
   - Guia Códigos: TableListBox com os DBFId do folders.xml (read-only).
   - Fechamento: se sujo, pergunta Salvar/Descartar/Cancelar
     (MessageBoxOptions + showAsync; 0=Salvar, 1=Descartar, 2=Cancelar).

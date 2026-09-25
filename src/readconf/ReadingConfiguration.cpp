@@ -69,15 +69,23 @@ ValidationResult validateForSave(const PlaylistIniDocument& doc)
     std::set<std::wstring> seenActive;
     for (size_t i = 0; i < afiliadas.size(); ++i) {
         const auto& a = afiliadas[i];
-        if (a.address.empty()) {
+        const std::wstring label = a.name.empty() ? L"(sem nome)"
+                                                  : (L"\"" + a.name + L"\"");
+        if (a.name.empty()) {
             result.errorMessage =
                 L"A afiliada na posição " + std::to_wstring(i + 1) +
+                L" não tem nome. Preencha o campo 'Afiliada' ou remova a entrada.";
+            return result;
+        }
+        if (a.address.empty()) {
+            result.errorMessage =
+                L"A afiliada " + label +
                 L" não tem endereço. Preencha Endereço ou remova a afiliada.";
             return result;
         }
         if (a.portText.empty()) {
             result.errorMessage =
-                L"A afiliada \"" + a.address + L"\" não tem porta. " +
+                L"A afiliada " + label + L" não tem porta. " +
                 L"Preencha a porta (ex.: 3030) ou remova a afiliada.";
             return result;
         }
@@ -90,14 +98,14 @@ ValidationResult validateForSave(const PlaylistIniDocument& doc)
         }
         if (!numeric) {
             result.errorMessage =
-                L"A porta da afiliada \"" + a.address + L"\" não é numérica " +
+                L"A porta da afiliada " + label + L" não é numérica " +
                 L"(\"" + a.portText + L"\"). Use apenas dígitos.";
             return result;
         }
         const long port = std::wcstol(a.portText.c_str(), nullptr, 10);
         if (port < 1 || port > 65535) {
             result.errorMessage =
-                L"A porta da afiliada \"" + a.address + L"\" está fora do " +
+                L"A porta da afiliada " + label + L" está fora do " +
                 L"intervalo válido (1 a 65535): \"" + a.portText + L"\".";
             return result;
         }

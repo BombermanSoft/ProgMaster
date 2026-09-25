@@ -319,15 +319,28 @@ void PlaylistIniDocument::insertKeyAfterHeader(int sectionIdx,
                                                const std::wstring& normalizedKey,
                                                const std::wstring& value)
 {
-    // Insere uma nova chave logo após o cabeçalho da seção.
+    // Insere uma nova chave logo após o cabeçalho da seção — a PRIMEIRA
+    // adicionada fica adjacente ao cabeçalho; as seguintes são encadeadas na
+    // ordem de chegada (FORMATO é sempre aplicado antes de ARQUIVO).
     IniLine line;
     line.kind = IniLineKind::Key;
     line.rawKey = rawKeyName;
     line.key = normalizedKey;
     line.value = value;
     line.raw = rebuildKeyLine(line);
-    if (sectionIdx + 1 < static_cast<int>(m_lines.size())) {
-        m_lines.insert(m_lines.begin() + (sectionIdx + 1), line);
+
+    int insertAt = sectionIdx + 1;
+    // Acha a última chave ativa já existente da seção para encadear depois
+    // dela (assim FORMATO vem antes de ARQUIVO, na ordem aplicada).
+    const int end = sectionEnd(sectionIdx);
+    for (int i = sectionIdx + 1; i < end; ++i) {
+        if (m_lines[static_cast<size_t>(i)].kind == IniLineKind::Key &&
+            !m_lines[static_cast<size_t>(i)].disabled) {
+            insertAt = i + 1;
+        }
+    }
+    if (insertAt < static_cast<int>(m_lines.size())) {
+        m_lines.insert(m_lines.begin() + insertAt, line);
     } else {
         m_lines.push_back(line);
     }
@@ -396,6 +409,18 @@ bool PlaylistIniDocument::applyFormat(ConfigScope scope, FormatOption option)
     return true;
 }
 
+bool PlaylistIniDocument::removeSection(ConfigScope scope)
+{
+    const int sec = sectionIndex(scope);
+    if (sec < 0) {
+        return false;
+    }
+    const int end = sectionEnd(sec);
+    m_lines.erase(m_lines.begin() + sec,
+                  m_lines.begin() + static_cast<ptrdiff_t>(end));
+    return true;
+}
+
 std::vector<PlaylistIniDocument::Afiliada> PlaylistIniDocument::afiliadas() const
 {
     std::vector<Afiliada> result;
@@ -406,9 +431,13 @@ std::vector<PlaylistIniDocument::Afiliada> PlaylistIniDocument::afiliadas() cons
     const int end = sectionEnd(sec);
     for (int i = sec + 1; i < end; ++i) {
         const IniLine& line = m_lines[static_cast<size_t>(i)];
-        if (line.kind == IniLineKind::Key && line.key == L"afiliada") {
+        // Toda CHAVE=VALOR dentro de [AFILIADAS] é uma afiliada; a chave é o
+        // NOME configurável (o exemplo do manual usa "AFILIADA", mas qualquer
+        // nome funciona — "TESTE = 192.168.0.2:3030").
+        if (line.kind == IniLineKind::Key) {
             Afiliada a;
             a.disabled = line.disabled;
+            a.name = line.rawKey.empty() ? line.key : line.rawKey;
             a.rawValue = line.value;
             a.lineIndex = i;
             const size_t colon = line.value.find(L':');
@@ -434,14 +463,15 @@ bool PlaylistIniDocument::ensureAfiliadasSection()
     return ensureSection(ConfigScope::Afiliadas) >= 0;
 }
 
-void PlaylistIniDocument::addAfiliada(const std::wstring& address,
+void PlaylistIniDocument::addAfiliada(const std::wstring& name,
+                                      const std::wstring& address,
                                       const std::wstring& portText,
                                       bool disabled)
 {
     IniLine line;
     line.kind = IniLineKind::Key;
-    line.rawKey = L"AFILIADA";
-    line.key = L"afiliada";
+    line.rawKey = name.empty() ? L"AFILIADA" : name;
+    line.key = toLower(name.empty() ? L"AFILIADA" : name);
     line.disabled = disabled;
     line.value = address;
     if (!portText.empty()) {
@@ -456,6 +486,7 @@ void PlaylistIniDocument::addAfiliada(const std::wstring& address,
 }
 
 void PlaylistIniDocument::updateAfiliada(size_t position,
+                                         const std::wstring& name,
                                          const std::wstring& address,
                                          const std::wstring& portText,
                                          bool disabled)
@@ -465,6 +496,8 @@ void PlaylistIniDocument::updateAfiliada(size_t position,
         return;
     }
     IniLine& line = m_lines[static_cast<size_t>(list[position].lineIndex)];
+    line.rawKey = name.empty() ? L"AFILIADA" : name;
+    line.key = toLower(name.empty() ? L"AFILIADA" : name);
     line.value = address;
     if (!portText.empty()) {
         line.value += L":";

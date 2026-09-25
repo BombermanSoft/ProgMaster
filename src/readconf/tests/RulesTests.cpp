@@ -70,7 +70,7 @@ void testSectionNames()
 void testOptionsForScope()
 {
     const auto c = optionsForFormat(ConfigScope::Comercial);
-    CHECK_MSG(c.size() == 5, "comercial tem 5 opÃ§Ãµes");
+    CHECK_MSG(c.size() == 6, "comercial tem 6 opÃ§Ãµes (inclui Planner)");
     const auto m = optionsForFormat(ConfigScope::Musical);
     CHECK_MSG(m.size() == 4, "musical tem 4 opÃ§Ãµes");
     const auto r = optionsForFormat(ConfigScope::RelogioComercial);
@@ -112,17 +112,18 @@ void testGenerateRules()
 {
     expectLines(ConfigScope::Comercial, FormatOption::Auto, L"FORMATO=AUTO", L"", __LINE__);
     expectLines(ConfigScope::Comercial, FormatOption::Single, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa.txt", __LINE__);
-    expectLines(ConfigScope::Comercial, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%w.txt", __LINE__);
+    expectLines(ConfigScope::Comercial, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%a.txt", __LINE__);
     expectLines(ConfigScope::Comercial, FormatOption::CommercialDay, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%d", __LINE__);
-    expectLines(ConfigScope::Comercial, FormatOption::CommercialDate, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%d-%m%Y", __LINE__);
+    expectLines(ConfigScope::Comercial, FormatOption::CommercialDate, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y", __LINE__);
+    expectLines(ConfigScope::Comercial, FormatOption::Planner, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\%d-%m-%Y.TXT", __LINE__);
     expectLines(ConfigScope::Musical, FormatOption::Auto, L"FORMATO=AUTO", L"", __LINE__);
     expectLines(ConfigScope::Musical, FormatOption::Single, L"FORMATO=TXT1", L"ARQUIVO=grades\\Grade.txt", __LINE__);
-    expectLines(ConfigScope::Musical, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=grades\\Grade%w.txt", __LINE__);
-    expectLines(ConfigScope::Musical, FormatOption::Maker, L"FORMATO=TXT1", L"ARQUIVO=grades\\%d-%m-%y", __LINE__);
+    expectLines(ConfigScope::Musical, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=grades\\Grade%a.txt", __LINE__);
+    expectLines(ConfigScope::Musical, FormatOption::Maker, L"FORMATO=TXT1", L"ARQUIVO=GRADES\\%d-%m-%Y.TXT", __LINE__);
     expectLines(ConfigScope::RelogioComercial, FormatOption::Single, L"FORMATO=TXT1", L"ARQUIVO=Mapas\\Relogio.txt", __LINE__);
     expectLines(ConfigScope::RelogioComercial, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=Mapas\\Relogio%a.txt", __LINE__);
-    expectLines(ConfigScope::RelogioMusical, FormatOption::Single, L"FORMATO=TXT1", L"ARQUIVO=Mapas\\Relogio.txt", __LINE__);
-    expectLines(ConfigScope::RelogioMusical, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=Mapas\\Relogio%a.txt", __LINE__);
+    expectLines(ConfigScope::RelogioMusical, FormatOption::Single, L"FORMATO=TXT1", L"ARQUIVO=GRADES\\Relogio.txt", __LINE__);
+    expectLines(ConfigScope::RelogioMusical, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=GRADES\\Relogio%a.txt", __LINE__);
 
     // OpÃ§Ãµes fora do escopo: geraÃ§Ã£o vazia.
     CHECK_MSG(generate(ConfigScope::Musical, FormatOption::CommercialDay).lines.empty(),
@@ -153,13 +154,17 @@ void testInterpret()
     checkMatch(ConfigScope::Comercial, L"TXT1", L"mapas\\mapa%a.txt", FormatOption::Weekly, L"weekly %a c");
     checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\MapaSeg.txt", FormatOption::Weekly, L"weekly seg c");
     checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d", FormatOption::CommercialDay, L"day c");
-    checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d-%m%Y", FormatOption::CommercialDate, L"date c");
+    checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d-%m%Y", FormatOption::CommercialDate, L"date c (antigo %Y 2 dig. sem hífen)");
+    checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d-%m-%Y", FormatOption::CommercialDate, L"date c novo");
+    checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\%d-%m-%Y.TXT", FormatOption::Planner, L"planner c");
     checkMatch(ConfigScope::Musical, L"TXT1", L"grades\\Grade.txt", FormatOption::Single, L"single m");
     checkMatch(ConfigScope::Musical, L"TXT1", L"grades\\Grade%w.txt", FormatOption::Weekly, L"weekly m");
-    checkMatch(ConfigScope::Musical, L"TXT1", L"grades\\%d-%m-%y", FormatOption::Maker, L"maker m");
+    checkMatch(ConfigScope::Musical, L"TXT1", L"grades\\%d-%m-%y", FormatOption::Maker, L"maker m (antigo 2 dig.)");
+    checkMatch(ConfigScope::Musical, L"TXT1", L"GRADES\\%d-%m-%Y.TXT", FormatOption::Maker, L"maker m novo");
     checkMatch(ConfigScope::RelogioComercial, L"TXT1", L"Mapas\\Relogio.txt", FormatOption::Single, L"relogio single");
     checkMatch(ConfigScope::RelogioComercial, L"TXT1", L"Mapas\\Relogio%a.txt", FormatOption::Weekly, L"relogio weekly");
     checkMatch(ConfigScope::RelogioMusical, L"TXT1", L"Mapas\\RelogioSeg.txt", FormatOption::Weekly, L"relogio seg");
+    checkMatch(ConfigScope::RelogioMusical, L"TXT1", L"GRADES\\Relogio.txt", FormatOption::Single, L"relogio musical unico grades");
     checkMatch(ConfigScope::RelogioComercial, L"AUTO", L"", FormatOption::Unknown, L"relogio auto desconhecido");
 
     // Valores fora do escopo -> Unknown.
@@ -237,7 +242,7 @@ void testDocumentApplyFormat()
     std::wstring fmt;
     CHECK_MSG(doc.sectionKeyValue(ConfigScope::Comercial, L"arquivo", fmt),
               "arquivo atualizado");
-    CHECK_EQ(fmt, L"MAPAS\\Mapa%w.txt");
+    CHECK_EQ(fmt, L"MAPAS\\Mapa%a.txt");
 
     // SeÃ§Ã£o desconhecida preservada na ordem e com o valor.
     const std::wstring out = doc.text();
@@ -268,7 +273,29 @@ void testDocumentCreateSection()
     std::wstring arq;
     CHECK_MSG(doc.sectionKeyValue(ConfigScope::Musical, L"arquivo", arq),
               "arquivo da seÃ§Ã£o criada");
-    CHECK_EQ(arq, L"grades\\%d-%m-%y");
+    CHECK_EQ(arq, L"GRADES\\%d-%m-%Y.TXT");
+
+    PlaylistIniDocument doc2;
+    doc2.setText(L";vazio\r\n");
+    CHECK_MSG(doc2.applyFormat(ConfigScope::Comercial, FormatOption::Planner),
+              "cria seÃ§Ã£o comercial Planner");
+    std::wstring arq2;
+    CHECK_MSG(doc2.sectionKeyValue(ConfigScope::Comercial, L"arquivo", arq2),
+              "arquivo da seÃ§Ã£o Planner criada");
+    CHECK_EQ(arq2, L"MAPAS\\%d-%m-%Y.TXT");
+    std::wstring f2;
+    CHECK_MSG(doc2.sectionKeyValue(ConfigScope::Comercial, L"formato", f2),
+              "formato da seÃ§Ã£o Planner criada");
+    CHECK_EQ(f2, L"TXT1");
+
+    PlaylistIniDocument doc3;
+    doc3.setText(L";vazio\r\n");
+    CHECK_MSG(doc3.applyFormat(ConfigScope::RelogioMusical, FormatOption::Weekly),
+              "cria seÃ§Ã£o relÃ³gio musical semanal");
+    std::wstring arq3;
+    CHECK_MSG(doc3.sectionKeyValue(ConfigScope::RelogioMusical, L"arquivo", arq3),
+              "arquivo do relÃ³gio musical semanal");
+    CHECK_EQ(arq3, L"GRADES\\Relogio%a.txt");
 }
 
 void testDocumentAfiliadasEdit()
@@ -279,19 +306,27 @@ void testDocumentAfiliadasEdit()
         L"AFILIADA=192.168.0.3:3030\r\n"
         L";AFILIADA=192.168.0.11:9090\r\n");
 
-    // Atualiza a desativada para ativa, com outra porta.
-    doc.updateAfiliada(1, L"192.168.0.12", L"8080", /*disabled=*/false);
+    // O nome da afiliada É a chave da linha (configurável pelo usuário).
+    const auto inicial = doc.afiliadas();
+    CHECK_MSG(inicial.size() == 2, "nº de afiliadas = 2");
+    CHECK_EQ(inicial[0].name, L"AFILIADA");
+    CHECK_EQ(inicial[1].name, L"AFILIADA");
+
+    // Atualiza a desativada para ativa, com outro nome/porta.
+    doc.updateAfiliada(1, L"RADIO2", L"192.168.0.12", L"8080", /*disabled=*/false);
     const auto afs = doc.afiliadas();
     CHECK_MSG(afs.size() == 2, "nº de afiliadas = 2");
     CHECK_MSG(!afs[1].disabled, "afiliada 1 agora ativa");
+    CHECK_EQ(afs[1].name, L"RADIO2");
     CHECK_EQ(afs[1].address, L"192.168.0.12");
     CHECK_EQ(afs[1].portText, L"8080");
 
-    // Adiciona uma terceira (desativada).
-    doc.addAfiliada(L"10.0.0.9", L"1", true);
+    // Adiciona uma terceira (desativada) com nome custom.
+    doc.addAfiliada(L"TESTE", L"10.0.0.9", L"1", true);
     const auto afs2 = doc.afiliadas();
     CHECK_MSG(afs2.size() == 3, "nº de afiliadas = 3");
     CHECK_MSG(afs2[2].disabled, "nova afiliada desativada");
+    CHECK_EQ(afs2[2].name, L"TESTE");
     CHECK_EQ(afs2[2].address, L"10.0.0.9");
 
     // Remove a primeira.
@@ -299,6 +334,30 @@ void testDocumentAfiliadasEdit()
     const auto afs3 = doc.afiliadas();
     CHECK_MSG(afs3.size() == 2, "nº de afiliadas = 2");
     CHECK_EQ(afs3[0].address, L"192.168.0.12");
+
+    // Remove a seção inteira.
+    CHECK_MSG(doc.removeSection(ConfigScope::Afiliadas), "remove a seção afiliadas");
+    CHECK_MSG(doc.afiliadas().empty(), "sem afiliadas após remover seção");
+    CHECK_MSG(doc.sectionIndex(ConfigScope::Afiliadas) == -1, "seção inexistente");
+}
+
+void testDocumentOrderArquivoAposFormato()
+{
+    // O ARQUIVO gerado deve vir DEPOIS do FORMATO na seção (o usuário
+    // reportou FORMATO em 2º lugar / ARQUIVO em 1º).
+    PlaylistIniDocument doc;
+    doc.setText(L"\r\n[BLOCO COMERCIAL]\r\nFORMATO=AUTO\r\n");
+    doc.applyFormat(ConfigScope::Comercial, FormatOption::CommercialDate);
+    const std::wstring out = doc.text();
+    const size_t pFormato = out.find(L"FORMATO=TXT1");
+    const size_t pArquivo = out.find(L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y");
+    CHECK_MSG(pFormato != std::wstring::npos, "formato presente");
+    CHECK_MSG(pArquivo != std::wstring::npos, "arquivo presente");
+    CHECK_MSG(pFormato < pArquivo, "FORMATO vem antes de ARQUIVO");
+
+    // Sem duplicar a linha do arquivo.
+    CHECK_MSG(out.find(L"ARQUIVO", pArquivo + 1) == std::wstring::npos,
+              "apenas um ARQUIVO na seção");
 }
 
 void testDocumentEolPreservation()
@@ -367,7 +426,11 @@ void testLocateFiles()
         f << "x";
     }
     {
-        std::ofstream f(base / L"grades" / L"23-09-26");
+        std::ofstream f(base / L"grades" / L"23-09-2026");
+        f << "x";
+    }
+    {
+        std::ofstream f(base / L"mapas" / L"23-09-2026.TXT");
         f << "x";
     }
 
@@ -380,16 +443,27 @@ void testLocateFiles()
     CHECK_MSG(single.size() == 1, "único = 1 arquivo");
     CHECK_MSG(single[0].exists, "Mapa.txt existe no Ãºnico");
 
-    // Maker: varredura de datas dd-mm-aa na pasta de grades.
+    // Maker: varredura de datas dd-mm-yyyy na pasta de grades.
     const auto maker = locateFiles(ConfigScope::Musical, FormatOption::Maker, base);
     CHECK_MSG(!maker.empty(), "maker tem pelo menos um arquivo");
-    bool found0926 = false;
+    bool found2026 = false;
     for (const auto& b : maker) {
-        if (b.fileName == L"23-09-26" && b.exists) {
-            found0926 = true;
+        if (b.fileName == L"23-09-2026" && b.exists) {
+            found2026 = true;
         }
     }
-    CHECK_MSG(found0926, "maker encontra 23-09-26");
+    CHECK_MSG(found2026, "maker encontra 23-09-2026");
+
+    // Planner: varredura de datas dd-mm-yyyy na pasta de mapas (sem prefixo).
+    const auto planner = locateFiles(ConfigScope::Comercial, FormatOption::Planner, base);
+    CHECK_MSG(!planner.empty(), "planner tem pelo menos um arquivo");
+    bool foundPlanner = false;
+    for (const auto& b : planner) {
+        if (b.fileName == L"23-09-2026.TXT" && b.exists) {
+            foundPlanner = true;
+        }
+    }
+    CHECK_MSG(foundPlanner, "planner encontra 23-09-2026.TXT");
 
     std::filesystem::remove_all(base, ec);
 }
@@ -504,6 +578,7 @@ int main()
     testDocumentApplyFormat();
     testDocumentCreateSection();
     testDocumentAfiliadasEdit();
+    testDocumentOrderArquivoAposFormato();
     testDocumentEolPreservation();
     testDocumentTolerances();
     testLocateFiles();

@@ -151,9 +151,11 @@ TextFileResult TextFileIO::readWide(const std::filesystem::path& path)
     }
 
     if (result.originalBytes.empty()) {
-        // Arquivo vazio é válido: conteúdo vazio.
+        // Arquivo vazio é válido: conteúdo vazio. Assume ANSI (CP_ACP) para
+        // que, ao criar o arquivo com acentos, a gravação use a página de
+        // código local (padrão dos arquivos do Playlist) e não UTF-8.
         result.ok = true;
-        result.encoding = TextEncoding::Utf8;
+        result.encoding = TextEncoding::Ansi;
         return result;
     }
 
@@ -189,10 +191,21 @@ TextEncoding TextFileIO::detectEncoding(const std::vector<unsigned char>& bytes,
         }
     }
 
-    // Sem BOM: tenta UTF-8 estrito; se o conteúdo for UTF-8 válido, assume UTF-8.
+    // Sem BOM: tenta UTF-8 estrito. Se o conteúdo for 100% ASCII, os bytes
+    // são idênticos em UTF-8 e em ANSI; classificamos como ANSI (CP_ACP) para
+    // que um arquivo "só ASCII" salvo depois com acentos ("Locução") seja
+    // gravado na página de código local — o formato que o Playlist legado lê.
+    // Conteúdo UTF-8 REAL (com bytes multibyte) continua sendo UTF-8.
+    bool hasHighByte = false;
+    for (unsigned char b : bytes) {
+        if (b > 0x7F) {
+            hasHighByte = true;
+            break;
+        }
+    }
     std::wstring probe;
     if (multibyteToWide(CP_UTF8, bytes.data(), bytes.size(), probe, /*strictUtf8=*/true)) {
-        return TextEncoding::Utf8;
+        return hasHighByte ? TextEncoding::Utf8 : TextEncoding::Ansi;
     }
 
     // Se não for UTF-8 e houver sinais de UTF-16LE, assume UTF-16LE (sem BOM).

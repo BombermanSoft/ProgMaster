@@ -47,6 +47,6 @@ public:
 private:
     std::filesystem::path m_path;
     std::wstring m_displayName = L"playlist.ini";
-    TextEncoding m_encoding = TextEncoding::Utf8;
+    TextEncoding m_encoding = TextEncoding::Ansi;
     std::vector<unsigned char> m_originalBytes;
 };

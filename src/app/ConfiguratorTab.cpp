@@ -1,6 +1,10 @@
 #include "app/ConfiguratorTab.h"
 
+#include <Windows.h>
+#include <shellapi.h>
+
 #include <algorithm>
+#include <filesystem>
 #include <utility>
 
 #include "app/JuceHelpers.h"
@@ -40,6 +44,13 @@ public:
         m_addButton.setButtonText("+ Adicionar estilo");
         m_addButton.onClick = [this] { m_host.onAddScope(m_scope); };
         addAndMakeVisible(m_addButton);
+
+        m_removeButton.setButtonText("Remover");
+        m_removeButton.setTooltip(
+            "Apaga a seção ['" + jstr(readconf::sectionNameFor(m_scope)) +
+            "'] inteira (cabeçalho e linhas).");
+        m_removeButton.onClick = [this] { m_host.onRemoveScope(m_scope); };
+        addAndMakeVisible(m_removeButton);
 
         m_formato.onChange = [this] {
             m_host.onOptionChanged(m_scope, optionForId(m_formato.getSelectedId()));
@@ -115,10 +126,15 @@ public:
         if (m_snap.present) {
             m_formato.setVisible(true);
             m_addButton.setVisible(false);
-            m_formato.setBounds(margin, 18 + statusH + 6 + rowH, w - 2 * margin, 24);
+            m_removeButton.setVisible(true);
+            m_formato.setBounds(margin, 18 + statusH + 6 + rowH,
+                                w - 2 * margin - 124, 24);
+            m_removeButton.setBounds(w - margin - 116, 18 + statusH + 6 + rowH,
+                                     116, 24);
         } else {
             m_formato.setVisible(false);
             m_addButton.setVisible(true);
+            m_removeButton.setVisible(false);
             m_addButton.setBounds(90, 18 + statusH + 12, 170, 24);
         }
 
@@ -216,6 +232,7 @@ private:
     juce::Label m_tokenLabel;
     juce::Label m_filesLabel;
     juce::TextButton m_addButton;
+    juce::TextButton m_removeButton;
     std::vector<std::pair<int, readconf::FormatOption>> m_optIds;
 };
 
@@ -225,14 +242,31 @@ private:
 class AfiliadaRow final : public juce::Component {
 public:
     AfiliadaRow(ConfiguratorTab& host, size_t position,
-                const std::wstring& address, const std::wstring& port,
-                bool active)
+                const std::wstring& name, const std::wstring& address,
+                const std::wstring& port, bool active)
         : m_host(host), m_position(position)
     {
+        // O documento usa "AFILIADA" como NOME (chave da linha) para linhas
+        // novas ainda sem nome; aqui exibimos o campo em branco com um texto
+        // PLACEHOLDER visual (mais claro que a escrita normal): a digitação
+        // é direta, sem precisar apagar nada. O nome real só é gravado quando
+        // o usuário digita.
+        const bool placeholderName = (name == L"AFILIADA");
+
+        m_name.setTooltip("Nome da afiliada (a CHAVE da linha, ex.: TESTE).");
+        m_name.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff3c3c3c));
+        m_name.setColour(juce::TextEditor::textColourId, juce::Colours::white);
+        m_name.setText(placeholderName ? juce::String() : jstr(name),
+                       juce::dontSendNotification);
+        m_name.setTextToShowWhenEmpty(juce::String("AFILIADA"), juce::Colours::grey);
+        m_name.onTextChange = [this] { m_host.onRowChanged(m_position); };
+        addAndMakeVisible(m_name);
+
         m_address.setTooltip("Endereço da afiliada (ex.: 192.168.0.50).");
         m_address.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff3c3c3c));
         m_address.setColour(juce::TextEditor::textColourId, juce::Colours::white);
         m_address.setText(jstr(address), juce::dontSendNotification);
+        m_address.setTextToShowWhenEmpty(juce::String("ENDEREÇO"), juce::Colours::grey);
         m_address.onTextChange = [this] { m_host.onRowChanged(m_position); };
         addAndMakeVisible(m_address);
 
@@ -240,6 +274,7 @@ public:
         m_port.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff3c3c3c));
         m_port.setColour(juce::TextEditor::textColourId, juce::Colours::white);
         m_port.setText(jstr(port), juce::dontSendNotification);
+        m_port.setTextToShowWhenEmpty(juce::String("PORTA"), juce::Colours::grey);
         m_port.onTextChange = [this] { m_host.onRowChanged(m_position); };
         addAndMakeVisible(m_port);
 
@@ -261,16 +296,21 @@ public:
         const int portW = 74;
         const int ativaW = 64;
         const int removeW = 86;
+        const int gap = 8;
+        const int nameW = 110;
 
         m_remove.setBounds(getWidth() - removeW - margin, 0, removeW, h);
-        m_ativa.setBounds(getWidth() - removeW - margin - ativaW - 8, 0, ativaW, h);
-        m_port.setBounds(getWidth() - removeW - margin - ativaW - 8 - portW - 8, 0,
+        m_ativa.setBounds(getWidth() - removeW - margin - ativaW - gap, 0, ativaW, h);
+        m_port.setBounds(getWidth() - removeW - margin - ativaW - gap - portW - gap, 0,
                          portW, h);
-        m_address.setBounds(margin, 0,
-                            getWidth() - removeW - margin - ativaW - 8 - portW - 8 - margin - 8,
+        m_address.setBounds(margin + nameW + gap, 0,
+                            getWidth() - removeW - margin - ativaW - gap - portW - gap
+                                - (margin + nameW + gap) - gap,
                             h);
+        m_name.setBounds(margin, 0, nameW, h);
     }
 
+    juce::String nameText() const { return m_name.getText(); }
     juce::String addressText() const { return m_address.getText(); }
     juce::String portText() const { return m_port.getText(); }
     bool active() const { return m_ativa.getToggleState(); }
@@ -278,6 +318,7 @@ public:
 private:
     ConfiguratorTab& m_host;
     size_t m_position = 0;
+    juce::TextEditor m_name;
     juce::TextEditor m_address;
     juce::TextEditor m_port;
     juce::ToggleButton m_ativa;
@@ -327,7 +368,8 @@ public:
             m_addRow.setVisible(true);
             for (size_t i = 0; i < list.size(); ++i) {
                 auto row = std::make_unique<AfiliadaRow>(
-                    m_host, i, list[i].address, list[i].portText, !list[i].disabled);
+                    m_host, i, list[i].name, list[i].address, list[i].portText,
+                    !list[i].disabled);
                 addAndMakeVisible(*row);
                 m_rows.push_back(std::move(row));
             }
@@ -387,35 +429,13 @@ ConfiguratorTab::ConfiguratorTab(PlaylistConfigController& controller)
     m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
     addAndMakeVisible(m_dirtyLabel);
 
-    m_textModeButton.setButtonText("\u270E  Visualizar como texto");
+m_textModeButton.setButtonText("\u270E  Visualizar como texto");
     m_textModeButton.setTooltip(
-        "Alterna esta guia entre a visualização estruturada e o bloco de "
-        "notas texto do playlist.ini (mesmo documento em memória).");
-    m_textModeButton.onStateChange = [this] {
-        const bool toText = m_textModeButton.getToggleState();
-        if (toText == m_textMode) {
-            return;
-        }
-        if (!toText) {
-            // Sair do modo texto: o conteúdo do editor vira o documento.
-            m_controller.setTextFromEditor(wstr(m_textEditor.getText()));
-        }
-        m_textMode = toText;
-        layoutContent();
-        resized();
-        updateDirtyLabel();
-    };
+        "Grava as alterações em disco e abre o playlist.ini no Bloco de "
+        "Notas do Windows para edição manual. Ao voltar a esta guia, o "
+        "arquivo é lido do disco novamente.");
+    m_textModeButton.onClick = [this] { openInNotepad(); };
     addAndMakeVisible(m_textModeButton);
-
-    m_textEditor.setMultiLine(true);
-    m_textEditor.setScrollbarsShown(true);
-    m_textEditor.setCaretVisible(true);
-    m_textEditor.setPopupMenuEnabled(true);
-    m_textEditor.setFont(juce::Font(juce::FontOptions(
-        juce::Font::getDefaultMonospacedFontName(), juce::Font::getDefaultStyle(),
-        14.0f)));
-    m_textEditor.onTextChange = [this] { updateDirtyLabel(); };
-    addAndMakeVisible(m_textEditor);
 
     m_visualArea.setScrollBarsShown(true, false, false, false);
     m_visualArea.setViewedComponent(&m_content, false);
@@ -432,8 +452,7 @@ ConfiguratorTab::ConfiguratorTab(PlaylistConfigController& controller)
 void ConfiguratorTab::refreshFromController()
 {
     m_controller.load();
-    m_textMode = false;
-    m_textModeButton.setToggleState(false, juce::dontSendNotification);
+    m_reloadFromDiskOnVisible = false;
     rebuildAll();
     updateDirtyLabel();
     resized();
@@ -442,12 +461,58 @@ void ConfiguratorTab::refreshFromController()
 void ConfiguratorTab::visibilityChanged()
 {
     juce::Component::visibilityChanged();
-    if (isVisible() && !m_textMode) {
-        // Documento pode ter mudado enquanto a guia estava oculta (pelo bloco
-        // de notas — playlist.ini em memória). Re-sincroniza os cartões.
+    if (isVisible() && m_reloadFromDiskOnVisible) {
+        // O usuário voltou do Bloco de Notas: relê o arquivo do disco para ver
+        // as edições externas (inclusive seções removidas/adicionadas por lá).
+        m_reloadFromDiskOnVisible = false;
+        m_controller.load();
         rebuildAll();
-        updateDirtyLabel();
+    } else if (isVisible()) {
+        // Documento pode ter mudado enquanto a guia estava oculta. Sincroniza
+        // os cartões com o estado em memória (sem reler o disco).
+        rebuildAll();
     }
+    updateDirtyLabel();
+}
+
+void ConfiguratorTab::openInNotepad()
+{
+    // Grava o estado atual em disco SEM validação para que o Bloco de Notas
+    // mostre exatamente o que está em memória (inclusive alterações ainda não
+    // clicadas em "Salvar playlist.ini").
+    std::wstring userMessage;
+    std::string technical;
+    if (m_controller.flushPendingToDisk(userMessage, technical)) {
+        m_reloadFromDiskOnVisible = true;
+    } else {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            L"Não foi possível abrir o Bloco de Notas", jstr(userMessage));
+        return;
+    }
+
+#if JUCE_WINDOWS
+    const std::filesystem::path p = m_controller.path();
+    if (p.empty() || !std::filesystem::exists(p)) {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            L"Não foi possível abrir o Bloco de Notas",
+            L"O playlist.ini ainda não existe no disco.");
+        m_reloadFromDiskOnVisible = false;
+        return;
+    }
+    const std::wstring file = p.wstring();
+    HINSTANCE h = ShellExecuteW(nullptr, L"open", L"notepad.exe", file.c_str(),
+                                nullptr, SW_SHOWNORMAL);
+    if (reinterpret_cast<intptr_t>(h) <= 32) {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            L"Não foi possível abrir o Bloco de Notas",
+            jstr(L"Falha ao iniciar notepad.exe (código " +
+                 std::to_wstring(reinterpret_cast<intptr_t>(h)) + L")."));
+        m_reloadFromDiskOnVisible = false;
+    }
+#endif
 }
 
 void ConfiguratorTab::onOptionChanged(readconf::ConfigScope scope,
@@ -468,6 +533,13 @@ void ConfiguratorTab::onAddScope(readconf::ConfigScope scope)
     updateDirtyLabel();
 }
 
+void ConfiguratorTab::onRemoveScope(readconf::ConfigScope scope)
+{
+    m_controller.removeScope(scope);
+    refreshScopeCard(scope);
+    updateDirtyLabel();
+}
+
 void ConfiguratorTab::onRowChanged(size_t position)
 {
     // Chamado a cada tecla/alternância numa linha de afiliada: sincroniza o
@@ -476,7 +548,9 @@ void ConfiguratorTab::onRowChanged(size_t position)
         return;
     }
     const auto& row = m_afiliadasCard->rows()[position];
-    m_controller.updateAfiliada(position, wstr(row->addressText()),
+    m_controller.updateAfiliada(position,
+                                wstr(row->nameText()),
+                                wstr(row->addressText()),
                                 wstr(row->portText()), !row->active());
     updateDirtyLabel();
 }
@@ -490,23 +564,20 @@ void ConfiguratorTab::onRemoveAfiliada(size_t position)
 
 void ConfiguratorTab::onAddAfiliada()
 {
-    m_controller.addAfiliada(L"", L"", false);
+    m_controller.addAfiliada(L"", L"", L"", false);
     refreshAfiliadasOnly();
     updateDirtyLabel();
 }
 
 void ConfiguratorTab::onAddAfiliadaSection()
 {
-    m_controller.addAfiliada(L"", L"", false);
+    m_controller.addAfiliada(L"", L"", L"", false);
     refreshAfiliadasOnly();
     updateDirtyLabel();
 }
 
 void ConfiguratorTab::savePlaylistIni()
 {
-    if (m_textMode) {
-        m_controller.setTextFromEditor(wstr(m_textEditor.getText()));
-    }
     std::wstring userMessage;
     std::string technical;
     if (m_controller.save(userMessage, technical)) {
@@ -525,10 +596,6 @@ void ConfiguratorTab::savePlaylistIni()
 void ConfiguratorTab::discardChanges()
 {
     m_controller.load();
-    if (m_textMode) {
-        m_textMode = false;
-        m_textModeButton.setToggleState(false, juce::dontSendNotification);
-    }
     rebuildAll();
     updateDirtyLabel();
 }
@@ -586,10 +653,6 @@ void ConfiguratorTab::refreshAfiliadasOnly()
 
 void ConfiguratorTab::layoutContent()
 {
-    if (m_textMode) {
-        return;
-    }
-
     const int margin = 6;
     const int contentWidth = juce::jmax(320, m_visualArea.getWidth() - 2 * margin);
     int y = margin;
@@ -615,12 +678,6 @@ void ConfiguratorTab::layoutContent()
 
 void ConfiguratorTab::updateDirtyLabel()
 {
-    if (m_textMode) {
-        m_dirtyLabel.setText("editando no bloco de notas (memória)",
-                             juce::dontSendNotification);
-        m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
-        return;
-    }
     if (m_controller.isDirty()) {
         m_dirtyLabel.setText("alterações não salvas", juce::dontSendNotification);
         m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
@@ -655,26 +712,15 @@ void ConfiguratorTab::resized()
     const int top = area.getY() + headerH + 4;
     const int bottom = area.getBottom() - bottomH - margin;
 
-    if (m_textMode) {
-        m_textEditor.setVisible(true);
-        m_visualArea.setVisible(false);
-        m_textEditor.setBounds(area.getX() + margin, top,
-                               area.getWidth() - 2 * margin, bottom - top);
-    } else {
-        m_textEditor.setVisible(false);
-        m_visualArea.setVisible(true);
-        m_visualArea.setBounds(area.getX() + margin, top,
-                               area.getWidth() - 2 * margin, bottom - top);
-    }
+    m_visualArea.setBounds(area.getX() + margin, top,
+                           area.getWidth() - 2 * margin, bottom - top);
 
     m_discardButton.setBounds(area.getX() + margin, area.getBottom() - bottomH,
                               160, 28);
     m_saveButton.setBounds(area.getRight() - 170, area.getBottom() - bottomH,
                            164, 28);
 
-    if (!m_textMode) {
-        layoutContent();
-    }
+    layoutContent();
 }
 
 } // namespace app

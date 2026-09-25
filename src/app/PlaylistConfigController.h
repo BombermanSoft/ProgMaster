@@ -67,12 +67,25 @@ public:
     // Cria uma configuração ausente (botão "+ Adicionar").
     bool addMissingConfiguration(readconf::ConfigScope scope);
 
-    void addAfiliada(const std::wstring& address,
+    // Remove a seção inteira de um escopo (botão "Remover" nos cartões).
+    bool removeScope(readconf::ConfigScope scope);
+
+    void addAfiliada(const std::wstring& name,
+                     const std::wstring& address,
                      const std::wstring& portText,
                      bool disabled);
-    void updateAfiliada(size_t position, const std::wstring& address,
+    void updateAfiliada(size_t position, const std::wstring& name,
+                        const std::wstring& address,
                         const std::wstring& portText, bool disabled);
     void removeAfiliada(size_t position);
+
+    // --- Bloco de Notas -------------------------------------------------------
+
+    // Efetua alterações pendentes no disco (sem validação) para que o arquivo
+    // reflita o estado atual em memória antes de abrir no bloco de notas.
+    // Devolve false + mensagem se não conseguir gravar.
+    bool flushPendingToDisk(std::wstring& userMessage,
+                            std::string& technicalError);
 
     // --- Editor TEXTUAL ----------------------------------------------------------
 

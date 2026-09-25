@@ -29,10 +29,11 @@ PlaylistIni::PlaylistIni(std::filesystem::path path)
 void PlaylistIni::setPath(std::filesystem::path path)
 {
     m_path = std::move(path);
-    // Limpa bytes e reseta codificação para UTF-8 (será redefinida pelo
-    // próximo load() se o arquivo existir).
+    // Limpa bytes e reseta codificação para ANSI (CP_ACP): arquivos NOVOS
+    // (que não existem ainda) são criados na página de código local, igual
+    // aos arquivos do Playlist. Se o arquivo existir, o próximo load() redefinirá.
     m_originalBytes.clear();
-    m_encoding = TextEncoding::Utf8;
+    m_encoding = TextEncoding::Ansi;
 }
 
 void PlaylistIni::setDisplayName(std::wstring displayName)

@@ -98,29 +98,37 @@ public:
     // em branco antes, se necessário). Devolve true em caso de sucesso.
     bool applyFormat(ConfigScope scope, FormatOption option);
 
+    // Remove a seção inteira do escopo (cabeçalho e todas as linhas até a
+    // próxima seção), se existir. Devolve true se removeu.
+    bool removeSection(ConfigScope scope);
+
     // ---------------------------------------------------------------------
     // Afiliadas ([AFILIADAS])
     // ---------------------------------------------------------------------
 
     struct Afiliada {
-        bool disabled = false;   // linha ";AFILIADA=..." (afiliada desativada)
+        bool disabled = false;   // linha ";NOME=..." (afiliada desativada)
+        std::wstring name;       // nome da afiliada = a CHAVE (ex.: "TESTE")
         std::wstring address;    // endereço (antes dos ':')
         std::wstring portText;   // porta como escrita (pode ser inválida/vazia)
         std::wstring rawValue;   // value completo como estava no disco
         int lineIndex = -1;      // índice da linha dentro do documento
     };
 
-    // Lista as afiliadas na ordem do arquivo (ativas e desativadas).
+    // Lista as afiliadas na ordem do arquivo (ativas e desativadas). A chave
+    // de cada linha é o NOME configurável da afiliada.
     std::vector<Afiliada> afiliadas() const;
 
     // Adiciona uma afiliada nova (ou cria a seção, se faltar).
-    // Disabled controla se é gravada como ";AFILIADA=".
-    void addAfiliada(const std::wstring& address,
+    // Disabled controla se é gravada como ";NOME=".
+    void addAfiliada(const std::wstring& name,
+                     const std::wstring& address,
                      const std::wstring& portText,
                      bool disabled);
 
     // Atualiza a afiliada na posição da lista (veja afiliadas()).
     void updateAfiliada(size_t position,
+                        const std::wstring& name,
                         const std::wstring& address,
                         const std::wstring& portText,
                         bool disabled);

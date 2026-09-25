@@ -135,20 +135,31 @@ bool PlaylistConfigController::addMissingConfiguration(readconf::ConfigScope sco
     return false;
 }
 
-void PlaylistConfigController::addAfiliada(const std::wstring& address,
+bool PlaylistConfigController::removeScope(readconf::ConfigScope scope)
+{
+    if (m_doc.removeSection(scope)) {
+        setDirty();
+        return true;
+    }
+    return false;
+}
+
+void PlaylistConfigController::addAfiliada(const std::wstring& name,
+                                           const std::wstring& address,
                                            const std::wstring& portText,
                                            bool disabled)
 {
-    m_doc.addAfiliada(address, portText, disabled);
+    m_doc.addAfiliada(name, address, portText, disabled);
     setDirty();
 }
 
 void PlaylistConfigController::updateAfiliada(size_t position,
+                                              const std::wstring& name,
                                               const std::wstring& address,
                                               const std::wstring& portText,
                                               bool disabled)
 {
-    m_doc.updateAfiliada(position, address, portText, disabled);
+    m_doc.updateAfiliada(position, name, address, portText, disabled);
     setDirty();
 }
 
@@ -156,6 +167,24 @@ void PlaylistConfigController::removeAfiliada(size_t position)
 {
     m_doc.removeAfiliada(position);
     setDirty();
+}
+
+bool PlaylistConfigController::flushPendingToDisk(std::wstring& userMessage,
+                                                  std::string& technicalError)
+{
+    userMessage.clear();
+    technicalError.clear();
+
+    // Grava SEM validação: é apenas um espelho para o Bloco de Notas editar.
+    // A validação continua acontecendo apenas no "Salvar playlist.ini".
+    const std::wstring text = m_doc.text();
+    if (!m_ini.save(text, userMessage, technicalError)) {
+        Log::error(technicalError);
+        return false;
+    }
+    m_dirty = false;
+    Log::info(L"playlist.ini gravado para edição no Bloco de Notas.");
+    return true;
 }
 
 std::wstring PlaylistConfigController::currentText() const

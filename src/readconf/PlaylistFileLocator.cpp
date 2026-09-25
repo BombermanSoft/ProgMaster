@@ -45,6 +45,7 @@ std::wstring todayDateShortYear()
 }
 
 // True se o nome tem a extensão de texto típica (.txt / .ini / vazio).
+// Comparação case-insensitive: o Planner oficial usa ".TXT" maiúsculo.
 bool hasTextExtension(const std::wstring& name)
 {
     const size_t dot = name.find_last_of(L'.');
@@ -52,7 +53,21 @@ bool hasTextExtension(const std::wstring& name)
         return true;
     }
     const std::wstring ext = name.substr(dot);
-    return ext == L".txt" || ext == L".ini";
+    const auto eqCi = [](const std::wstring& a, const wchar_t* b) {
+        if (a.size() != std::char_traits<wchar_t>::length(b)) {
+            return false;
+        }
+        for (size_t i = 0; i < a.size(); ++i) {
+            const wchar_t ca = a[i];
+            const wchar_t cb = b[i];
+            if ((ca >= L'A' && ca <= L'Z' ? ca + 32 : ca) !=
+                (cb >= L'A' && cb <= L'Z' ? cb + 32 : cb)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    return eqCi(ext, L".txt") || eqCi(ext, L".ini");
 }
 
 bool isDigits(const std::wstring& s, size_t expectedLength)
@@ -103,12 +118,42 @@ bool matchDatePattern(const std::wstring& name, const std::wstring& prefix,
 
 bool matchMakerPattern(const std::wstring& name, const std::wstring& prefix)
 {
-    return matchDatePattern(name, prefix, 2);
+    return matchDatePattern(name, prefix, 4);
+}
+
+// Dobra acentos PT-BR (a grafia canônica do sábado é "Sáb", mas arquivos
+// antigos no disco podem estar gravados como "Sab").
+wchar_t foldAccentChar(wchar_t c)
+{
+    switch (c) {
+    case L'á': case L'à': case L'â': case L'ã': case L'ä': return L'a';
+    case L'é': case L'è': case L'ê': case L'ë': return L'e';
+    case L'í': case L'ì': case L'î': case L'ï': return L'i';
+    case L'ó': case L'ò': case L'ô': case L'õ': case L'ö': return L'o';
+    case L'ú': case L'ù': case L'û': case L'ü': return L'u';
+    case L'ç': return L'c';
+    default: return c;
+    }
+}
+
+std::wstring foldAccentName(const std::wstring& name)
+{
+    std::wstring out = name;
+    for (wchar_t& ch : out) {
+        ch = foldAccentChar(ch);
+    }
+    return out;
 }
 
 bool fileExistsIn(const std::filesystem::path& folder, const std::wstring& name)
 {
-    return std::filesystem::exists(folder / name);
+    if (std::filesystem::exists(folder / name)) {
+        return true;
+    }
+    // Tolerância de acento: "RelogioSáb.txt" (grafia atual) também encontra
+    // o arquivo antigo "RelogioSab.txt" que existe no disco.
+    const std::wstring folded = foldAccentName(name);
+    return folded != name && std::filesystem::exists(folder / folded);
 }
 
 std::vector<FileBinding> scanFor(const std::filesystem::path& folder,
@@ -130,6 +175,9 @@ std::vector<FileBinding> scanFor(const std::filesystem::path& folder,
             break;
         case FormatOption::CommercialDate:
             matches = matchDatePattern(name, prefix, 4);
+            break;
+        case FormatOption::Planner:
+            matches = matchDatePattern(name, L"", 4);
             break;
         case FormatOption::Maker:
             matches = matchMakerPattern(name, L"");
@@ -249,10 +297,17 @@ std::vector<FileBinding> locateFiles(ConfigScope scope,
         }
         break;
 
+    case FormatOption::Planner:
+        result = scanFor(folder, scope, option);
+        if (result.empty()) {
+            result.push_back({ todayDateFullYear(), false });
+        }
+        break;
+
     case FormatOption::Maker:
         result = scanFor(folder, scope, option);
         if (result.empty()) {
-            result.push_back({ todayDateShortYear(), false });
+            result.push_back({ todayDateFullYear(), false });
         }
         break;
 

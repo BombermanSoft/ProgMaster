@@ -27,10 +27,11 @@ namespace app {
 //   Sair                   -> fecha (com aviso se houver não salvo)
 // Menu "Editar":
 //   Programação            -> playlist.ini (bloco de notas)
-//   Mapa Comercial         -> mapas\Mapas.txt
-//   Grades Musicais        -> grades\Grades.txt
-//   Relógio Comercial      -> Relogio.txt (conforme configuração)
-//   Relógio Musical        -> Relogio.txt (conforme configuração)
+//   Mapa Comercial         -> arquivo(s) dos mapas (único ou semanais)
+//   Grades Musicais        -> arquivo(s) das grades (único ou semanais)
+//   Relógio Comercial      -> arquivo(s) do relógio comercial
+//   Relógio Musical        -> arquivo(s) do relógio musical
+//   (conforme a configuração atual: Único = 1 aba, Semanal = 7 abas)
 class MainWindow final : public juce::DocumentWindow,
                          public juce::MenuBarModel {
 public:
