@@ -1,0 +1,143 @@
+=======================================================================
+ROTEIRO DE TESTES MANUAIS — ProgMaster (Fase 2, rodada 25/09/2026)
+Uso: validar as correções da rodada. O item 1 (reconhecimento do
+playlist.ini) é o MAIS IMPORTANTE — teste-o primeiro e com cuidado.
+=======================================================================
+
+PREPARAÇÃO
+----------
+- Executar o build atual:
+  build\ProgMaster_artefacts\Release\ProgMaster.exe
+- Instalações de teste usadas:
+  C:\Playlist_TESTES\pgm\Playlist.exe   (playlist.ini simples de teste)
+  C:\Playlist_oficial\pgm\Playlist.exe  (playlist da instalação real)
+- Em cada passo, olhe a BARRA DE STATUS (parte de baixo da janela):
+  ela mostra o caminho do playlist.ini reconhecido e o do Playlist.exe.
+- Antes, copie os arquivos de teste para um local separado, se precisar
+  comparar bytes (Ex.: blocos de anotações, ferramenta hex).
+
+-----------------------------------------------------------------------
+1) RECONHECIMENTO DO PLAYLIST.INI        (prioridade máxima)
+-----------------------------------------------------------------------
+1.1. Iniciar o ProgMaster com a localização C:\Playlist_TESTES.
+     ESPERADO:
+     - A janela abre na guia "Editor" e a área de texto já aparece
+       PREENCHIDA com o conteúdo de C:\Playlist_TESTES\pgm\playlist.ini
+       (não pode ficar vazia nem mostrar "arquivo não encontrado").
+     - Barra de status: "playlist.ini: C:\Playlist_TESTES\pgm\
+       playlist.ini | Playlist.exe: C:\Playlist_TESTES\pgm\Playlist.exe"
+       (SEM o texto "(não encontrado)").
+     - Guia "Configuração": mostra os cartões reconhecidos do arquivo
+       (no ini de teste: RELOGIO COMERCIAL, RELOGIO MUSICAL e
+       AFILIADAS com Wandinho=192.168.0.9:3030).
+
+1.2. Trocar localização (menu Arquivo ▸ Trocar localização) para
+     C:\Playlist_oficial\pgm\Playlist.exe.
+     ESPERADO:
+     - Barra de status passa a mostrar o PLAYLIST.ini da nova
+       instalação (a procura tolera maiúsculas/minúsculas no nome do
+       arquivo, ex.: PLAYLIST.ini).
+     - Guia Editor: reabre as sub-abas apontando para os arquivos da
+       NOVA pasta (não pode ficar presa na pasta antiga).
+     - Guia Configuração: passa a refletir o arquivo recarregado.
+
+1.3. Trocar para uma pasta com Playlist.exe mas SEM playlist.ini
+     (ex.: uma pasta vazia com apenas o Playlist.exe copiado).
+     ESPERADO:
+     - Barra de status: "playlist.ini: (não encontrado)".
+     - Guia Editor: abre vazia, com a mensagem indicando que o arquivo
+       "ainda não existe no disco (será criado ao salvar)" — sem
+       mensagem confusa, e digitando e clicando Salvar o playlist.ini
+       é CRIADO nessa pasta.
+
+-----------------------------------------------------------------------
+2) MENU EDITAR (sem nomes de arquivo)
+-----------------------------------------------------------------------
+2.1. Abrir o menu "Editar".
+     ESPERADO: as opções mostram apenas os nomes amigáveis:
+     Programação | Mapa Comercial | Grades Musicais |
+     Relógio Comercial | Relógio Musical (sem sufixos de arquivo
+     tipo "[playlist.ini]", "[Mapa.txt]" etc.).
+
+-----------------------------------------------------------------------
+3) SUB-ABAS CONFORME A CONFIGURAÇÃO (único x semanal)
+-----------------------------------------------------------------------
+3.1. No playlist.ini, ter ARQUIVO=Mapas\Relogio%a.txt (formato
+     SEMANAL). Menus Editar ▸ Relógio Comercial e ▸ Relógio Musical.
+     ESPERADO: 7 sub-abas (RelogioSeg, RelogioTer, ..., RelogioDom),
+     cada uma abrindo seu arquivo; abas de arquivos inexistentes abrem
+     vazias e podem ser criadas ao Salvar.
+
+3.2. Mudar para ARQUIVO=Mapas\Relogio.txt (formato ÚNICO) e reabrir
+     os mesmos itens.
+     ESPERADO: 1 única sub-aba (Relogio.txt).
+
+3.3. Repetir com "Mapa Comercial" (Mapa.txt x Mapa%a.txt, ou seja
+     MapaSeg..MapaDom) e "Grades Musicais" (Grade.txt x Grade%a.txt).
+     ESPERADO: 1 aba no único, 7 abas no semanal. Salvar grava o
+     arquivo da aba ativa.
+
+-----------------------------------------------------------------------
+4) ACENTOS E CODIFICAÇÃO
+-----------------------------------------------------------------------
+4.1. Abrir um arquivo ANSI antigo com acento — ex.: copiar
+     "playlist - Copia.ini" (contém o byte 0xE1 = 'á' em CP-1252) para
+     uma localização de teste e abrir via Editar ▸ Programação.
+     ESPERADO: o "á" aparece NORMAL no editor (sem caracteres
+     estranhos). Salvar MANTÉM a codificação ANSI original.
+
+4.2. Criar um arquivo NOVO: numa sub-aba semanal inexistente (ex.:
+     RelogioDom.txt), digitar acentos (ç, ã, é, õ) e Salvar.
+     ESPERADO: o arquivo é gravado em ANSI (CP-1252) — um byte por
+     caractere acentuado, SEM BOM UTF-8 — legível no Playlist real.
+     (Conferir com editor hex, se quiser: "ç" = 0xE7, "ã" = 0xE3.)
+
+-----------------------------------------------------------------------
+5) "Sáb" (canônico) x "Sab" (arquivos antigos)
+-----------------------------------------------------------------------
+5.1. Com a pasta de programação contendo arquivos antigos nomeados
+     SEM acento (ex.: RelogioSáb <=> RelogioSab.txt no disco), abrir a
+     configuração semanal e as sub-abas.
+     ESPERADO: os arquivos antigos "RelogioSab.txt" são ENCONTRADOS e
+     abertos pelas abas (RelogioSáb..RelogioDom) — a procura ignora o
+     acento e a caixa das letras.
+
+5.2. Sub-abas mostram os dias com "Sáb": RelogioSáb.txt / MapaSáb.txt /
+     GradeSáb.txt (grafia canônica do Manual), e arquivos criados ao
+     salvar usam esse nome.
+
+-----------------------------------------------------------------------
+6) PLACEHOLDERS DE AFILIADA
+-----------------------------------------------------------------------
+6.1. Guia Configuração ▸ cartão [AFILIADAS] ▸ "+ Adicionar afiliada".
+     ESPERADO: a nova linha aparece com os campos em BRANCO e textos
+     cinzas "AFILIADA", "ENDEREÇO" e "PORTA" como dica. Digitar o nome
+     direto no campo (sem precisar apagar nada). Salvar grava a linha
+     "NOME = endereço:porta".
+
+-----------------------------------------------------------------------
+7) RELÓGIO MUSICAL
+-----------------------------------------------------------------------
+7.1. Com o ini de teste ([RELOGIO MUSICAL] ARQUIVO=GRADES\
+     Relogio%a.txt), menu Editar ▸ Relógio Musical.
+     ESPERADO: abre as 7 sub-abas dos relógios musicais semanais em
+     GRADES (RelogioSeg..RelogioDom). Digitar/Salvar grava o arquivo
+     da aba ativa; abas sem arquivo criam ao salvar.
+
+-----------------------------------------------------------------------
+8) SALVAR, VALIDAÇÃO E FECHAMENTO
+-----------------------------------------------------------------------
+8.1. Digitar (sem salvar) numa sub-aba, trocar de aba e voltar:
+     o conteúdo digitado deve permanecer (sem perda ao trocar de aba).
+8.2. Colocar endereço/porta inválida numa afiliada (ex.: porta 70000)
+     e clicar Salvar: NADA é gravado e uma mensagem explica o erro.
+     Corrigir e salvar: arquivo gravado na codificação original.
+8.3. Com alterações não salvas, fechar a janela: pergunta
+     Salvar / Descartar / Cancelar.
+
+-----------------------------------------------------------------------
+RESULTADO
+-----------------------------------------------------------------------
+Anotar para cada item: PASS (como esperado) ou FALHA (descrever o que
+aconteceu e o que era esperado). Relatar as falhas para correção na
+próxima rodada.

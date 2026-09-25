@@ -1,8 +1,9 @@
 =======================================================================
 CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
-Data: 24/09/2026
-Status: Etapa 2 concluída (build limpo /W4, 116/116 testes, app abre);
-        bug da pasta de programação corrigido (24/09 — ver E.2/C.5)
+Data: 25/09/2026
+Status: Etapa 2 concluída (build limpo /W4, 165/165 testes, app abre);
+        rodada de correções de interface 25/09 (7 bugs — ver J.9);
+        testes manuais pendentes (docs\ROTEIRO_DE_TESTES.txt)
 =======================================================================
 
 -----------------------------------------------------------------------
@@ -73,6 +74,23 @@ B.2. Implementado (Etapa 2)
       codificação original;
   [x] Menu Editar ▸ Relógio Comercial / Relógio Musical (abre
       Relogio.txt ou Relogio<dia>.txt conforme a configuração);
+  [x] MENU EDITAR sem nomes de arquivo (Programação / Mapa Comercial /
+      Grades Musicais / Relógio Comercial / Relógio Musical);
+  [x] Guia Editor com SUB-ABAS por arquivo (25/09): Único = 1 aba
+      (Mapa.txt/Grade.txt/Relogio.txt); Semanal = 7 abas
+      (MapaSeg..MapaDom, GradeSeg..GradeDom, RelogioSeg..RelogioDom).
+      O playlist.ini usa o mesmo documento em memória do controlador e
+      é aberto automaticamente ao iniciar (nenhuma tela vazia no
+      início); ao trocar de localização as sub-abas são reabertas com
+      os caminhos da nova pasta;
+  [x] Arquivos novos / arquivos 100% ASCII passam a ser tratados como
+      ANSI (CP-1252, igual ao Playlist) — digitando acentos não se
+      corrompe a leitura no sistema real;
+  [x] Dias da semana com grafia canônica "Sáb" (ex.: MapaSáb.txt),
+      com procura TOLERANTE a acento/caixa para arquivos antigos
+      "Sab" no disco (RelogioSab.txt ainda é reconhecido);
+  [x] Campos de afiliada com texto de dica cinza (placeholders)
+      AFILIADA/ENDEREÇO/PORTA — digitação direta, sem apagar nada;
   [x] Fechamento com confirmação Salvar/Descartar/Cancelar quando há
       alterações não salvas;
   [x] Ícone do executável (ICON_BIG/ICON_SMALL via juce_add_gui_app) e
@@ -143,6 +161,8 @@ C:\Users\Usuario\Documents\Config-alpha1\
 │  └─ README.txt
 ├─ docs\
 │  ├─ CONTEXTO_PROJETO.txt   Este arquivo
+│  ├─ ROTEIRO_DE_TESTES.txt  Testes manuais da rodada 25/09 (item 1 =
+│  │                         reconhecimento do playlist.ini)
 │  └─ ARQUITETURA_DO_CODIGO.txt
 ├─ build\                    Artefatos (não versionar)
 └─ src\
@@ -274,11 +294,14 @@ Estado esperado e verificado: 0 erros, 0 warnings (/W4 no nosso código).
 H. COMO EXECUTAR / TESTAR
 -----------------------------------------------------------------------
   build\ProgMaster_artefacts\Release\ProgMaster.exe
-  build\Release\ProgMasterCoreTests.exe      -> 116/116 ok
+  build\Release\ProgMasterCoreTests.exe      -> 165/165 ok
 
 Na primeira execução, informe onde está o Playlist.exe. O caminho é
 gravado em %APPDATA%\ProgMaster\config.txt.
 Arquivos gerados: config.txt (UTF-8 sem BOM) e log.txt (UTF-8 com BOM).
+
+Testes manuais do executável: seguir docs\ROTEIRO_DE_TESTES.txt
+(começando pelo item 1 — reconhecimento do playlist.ini).
 
 -----------------------------------------------------------------------
 I. DISTRIBUIÇÃO ÚNICO ARQUIVO (mantido da Etapa 1)
@@ -288,8 +311,10 @@ CRT estática (/MT). Copiar um único arquivo para distribuir.
 -----------------------------------------------------------------------
 J. TESTES REALIZADOS
 -----------------------------------------------------------------------
-J.7. Etapa 2 — suíte automatizada (24/09/2026): 116/116 PASS.
-  - FormatRules: mapa escopo->token para os 5 escopos e formatos;
+J.7. Etapa 2 — suíte automatizada (25/09/2026): 165/165 PASS.
+  - FormatRules: mapa escopo->token para os 5 escopos e formatos
+    (incluindo a grafia "Sáb" com comparação tolerante a acento e o
+    casamento de "Relogio%a.txt" com "RelogioSab.txt");
   - PlaylistIniDocument: parse, re-serialização, preservação de
     seções não reconhecidas e TOLERÂNCIA (seções com acento, valores
     com aspas) — ver teste testDocumentTolerances;
@@ -306,11 +331,26 @@ J.8. Smoke test da interface (24/09/2026):
     por lançamento + encerramento controlado). Interação visual completa
     (mouse/teclado) ainda é manual — A DEFINIR suíte GUI.
 
+J.9. Rodada de correções de interface (25/09/2026):
+  - 7 bugs tratados: (1) tela inicial vazia/"arquivo não encontrado"
+    no Editor; (2) acentos/ç corrompidos (novos/ASCII agora ANSI);
+    (3) "Sab" -> "Sáb" com procura tolerante; (4) sub-abas semanais
+    por dia conforme o playlist.ini; (5) relógios musicais (coberto
+    por testes: GRADES\Relogio%a.txt -> semanal); (6) placeholders
+    visuais AFILIADA/ENDEREÇO/PORTA; (7) menu Editar sem nomes de
+    arquivo. Build Release ok e 165/165 testes; validação visual do
+    executável fica com o usuário (docs\ROTEIRO_DE_TESTES.txt), com
+    destaque para o item 1 (reconhecimento do playlist.ini).
+  - Commits: 2f6472c (7 bugs) e de98857 (reabrir abas ao trocar
+    localização).
+
 -----------------------------------------------------------------------
 K. PROBLEMAS CONHECIDOS / LIMITAÇÕES
 -----------------------------------------------------------------------
-K.1. Codificação ambígua: arquivo 100% ASCII lido como UTF-8 (sem
-     mudança de conteúdo; ver TextFileIO).
+K.1. Codificação: arquivo 100% ASCII é tratado como ANSI (CP-1252)
+     para criar/gravar arquivos como o Playlist (correção 25/09).
+     Conteúdo multibyte válido continua sendo UTF-8 (com ou sem BOM);
+     a detecção de ASCII-puro x UTF-8 real é feita em TextFileIO.
 K.2. Sem suíte automatizada de GUI (validação manual) — A DEFINIR.
 K.3. Índice do callback de MessageBoxOptions (0/1/2 p/ Salvar/Descartar/
      Cancelar, 0-based): comportamento validado por leitura do código
