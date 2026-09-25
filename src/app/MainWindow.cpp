@@ -243,11 +243,13 @@ void MainWindow::refreshFromLocator()
     // O editor começa sem nenhuma sub-aba: ao iniciar (ou ao trocar de
     // localização), abre logo o playlist.ini para o usuário ver o conteúdo
     // já preenchido no bloco de notas — em vez de uma tela vazia e a mensagem
-    // "arquivo não encontrado". Se já havia abas abertas, apenas sincroniza.
+    // "arquivo não encontrado". Se já havia abas abertas, reabre o conjunto
+    // corrente com os caminhos da NOVA localização (senão as abas continuariam
+    // presas à pasta antiga).
     if (!m_editorTab.hasOpenPages()) {
         m_editorTab.openFile(EditorTab::FileKind::PlaylistIni);
     } else {
-        m_editorTab.refreshIniFromController();
+        m_editorTab.openFile(m_editorTab.currentKind());
     }
 
     std::wstring status;
