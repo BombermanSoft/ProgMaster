@@ -128,11 +128,18 @@ bool PlaylistIni::save(const std::wstring& content,
         return false;
     }
 
-    // Grava na codificação original detectada na leitura.
-    if (!TextFileIO::writeWide(m_path, content, m_encoding, technicalError)) {
+    // Grava na codificação que o Playlist lê (ANSI/CP_ACP) — mesmo que o
+    // arquivo original tenha sido criado como UTF-8 (por versões antigas ou
+    // outras ferramentas), o conteúdo é convertido para ANSI; se houver
+    // caracteres que não couberem na página de código local, a gravação é
+    // recusada (TextFileIO confere por round-trip) e nada é corrompido.
+    if (!TextFileIO::writeWide(m_path, content, effectiveWriteEncoding(),
+                               technicalError)) {
         userMessage = L"Não foi possível salvar o arquivo \"" + m_displayName +
-                      L"\". Verifique se o arquivo não está em uso ou se a "
-                      L"codificação permite os caracteres digitados.";
+                      L"\". O texto contém caracteres que a codificação ANSI "
+                      L"do Playlist (página de código local) não suporta — "
+                      L"troque os caracteres especiais (emoji, aspas/acentos "
+                      L"estrangeiros) e tente novamente. Nada foi gravado.";
         Log::error(technicalError);
         return false;
     }
@@ -146,4 +153,18 @@ bool PlaylistIni::save(const std::wstring& content,
 
     Log::info(m_displayName + L" salvo em: " + m_path.wstring());
     return true;
+}
+
+TextEncoding PlaylistIni::effectiveWriteEncoding() const
+{
+    switch (m_encoding) {
+    case TextEncoding::Utf8:
+    case TextEncoding::Utf8Bom:
+    case TextEncoding::Ansi:
+        return TextEncoding::Ansi;
+    case TextEncoding::Utf16Le:
+    case TextEncoding::Utf16Be:
+        return m_encoding;
+    }
+    return TextEncoding::Ansi;
 }

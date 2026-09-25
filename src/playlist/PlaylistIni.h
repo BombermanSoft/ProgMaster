@@ -12,7 +12,10 @@
 // Etapa 1: o conteúdo NÃO é interpretado. Este componente apenas:
 //   - localiza o arquivo;
 //   - carrega o conteúdo preservando bytes e codificação originais;
-//   - salva usando a MESMA codificação detectada na leitura.
+//   - salva NA CODIFICAÇÃO QUE O PLAYLIST LÊ: os arquivos de programação
+//     (UTF-8, UTF-8 com BOM, ANSI) são gravados como ANSI (CP_ACP); apenas
+//     arquivos UTF-16 (BOM) têm a codificação original preservada, pois
+//     são produzidos por outras ferramentas.
 class PlaylistIni {
 public:
     PlaylistIni() = default;
@@ -36,7 +39,8 @@ public:
               std::wstring& userMessage,
               std::string& technicalError);
 
-    // Salva o texto fornecido na codificação original do arquivo.
+    // Salva o texto fornecido na codificação adequada ao Playlist
+    // (ver comentário da classe).
     bool save(const std::wstring& content,
               std::wstring& userMessage,
               std::string& technicalError);
@@ -45,6 +49,11 @@ public:
     const std::vector<unsigned char>& originalBytes() const;
 
 private:
+    // Codificação efetiva de GRAVAÇÃO: ANSI (CP_ACP) para UTF-8/UTF-8
+    // BOM/ANSI; preserva UTF-16LE/BE. Se algum caractere não couber na
+    // página de código local, encodeFromWide recusa a gravação.
+    TextEncoding effectiveWriteEncoding() const;
+
     std::filesystem::path m_path;
     std::wstring m_displayName = L"playlist.ini";
     TextEncoding m_encoding = TextEncoding::Ansi;

@@ -86,6 +86,12 @@ B.2. Implementado (Etapa 2)
   [x] Arquivos novos / arquivos 100% ASCII passam a ser tratados como
       ANSI (CP-1252, igual ao Playlist) — digitando acentos não se
       corrompe a leitura no sistema real;
+  [x] GRAVAÇÃO sempre em ANSI/CP-ACP (o formato que o Playlist lê):
+      arquivos que já estavam em UTF-8 (criados por versões antigas ou
+      outras ferramentas) são CONVERTIDOS para ANSI ao salvar; se algum
+      caractere não couber na página de código local, a gravação é
+      recusada com mensagem clara (nada é corrompido). Apenas arquivos
+      UTF-16 (BOM) preservam a codificação original;
   [x] Dias da semana com grafia canônica "Sáb" (ex.: MapaSáb.txt),
       com procura TOLERANTE a acento/caixa para arquivos antigos
       "Sab" no disco (RelogioSab.txt ainda é reconhecido);

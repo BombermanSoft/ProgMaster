@@ -92,6 +92,17 @@ PREPARAÇÃO
      caractere acentuado, SEM BOM UTF-8 — legível no Playlist real.
      (Conferir com editor hex, se quiser: "ç" = 0xE7, "ã" = 0xE3.)
 
+4.3. Arquivo que JÁ estava em UTF-8 com acento (ex.: criado por uma
+     versão antiga do ProgMaster ou pelo Bloco de Notas): abrir, digitar
+     algo e Salvar.
+     ESPERADO: ao salvar, o arquivo é CONVERTIDO para ANSI (CP-1252)
+     automaticamente — porque é o formato que o Playlist lê. Depois de
+     salvo, abra com o Playlist: ç/ã/é aparecem certos.
+     NOTA: se o texto contiver caracteres que a página de código local
+     não suporta (ex.: emoji, aspas estrangeiras "…"), a gravação é
+     RECUSADA com mensagem clara e NADA é gravado — troque esses
+     caracteres e salve de novo.
+
 -----------------------------------------------------------------------
 5) "Sáb" (canônico) x "Sab" (arquivos antigos)
 -----------------------------------------------------------------------
