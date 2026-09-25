@@ -4,6 +4,11 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include "core/TextFileIO.h"
 #include "readconf/FormatRules.h"
 #include "readconf/PlaylistFileLocator.h"
 #include "readconf/PlaylistIniDocument.h"
@@ -429,6 +434,62 @@ void testReadingScopes()
     CHECK_EQ(scopes[3].matchedToken, L"%a");
 }
 
+void testTextFileIOAccents()
+{
+    // Preservação de acentos em todas as codificações suportadas.
+    const std::wstring text =
+        L"[REL\u00D3GIO COMERCIAL]\r\n"
+        L"DESCRI\u00C7\u00C3O=R\u00C1DIO \u00D4NIBUS\r\n"
+        L"EMISSORA=\u00C0 VISTA \u2013 R\u00C3O\r\n";
+
+    const struct {
+        const char* name;
+        TextEncoding enc;
+    } kCases[] = {
+        { "Utf8",    TextEncoding::Utf8 },
+        { "Utf8Bom", TextEncoding::Utf8Bom },
+        { "Utf16Le", TextEncoding::Utf16Le },
+        { "Ansi",    TextEncoding::Ansi }, // CP_ACP local (CP-1252 no BR)
+    };
+
+    for (const auto& c : kCases) {
+        const std::filesystem::path dir =
+            std::filesystem::temp_directory_path() / L"pm_accents_test";
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        const auto path = dir / (std::string(c.name) + ".ini");
+
+        std::string techErr;
+        const bool wrote = TextFileIO::writeWide(path, text, c.enc, techErr);
+        const std::string encName = "[" + std::string(c.name) + "]";
+        CHECK_MSG(wrote, encName + " writeWide ok");
+        if (!wrote) {
+            continue;
+        }
+
+        const TextFileResult res = TextFileIO::readWide(path);
+        CHECK_MSG(res.ok, "readWide ok");
+        CHECK_MSG(res.encoding == c.enc, "encoding preservado no read");
+        CHECK_EQ(res.text, text);
+
+        const TextFileResult res2 = TextFileIO::readWide(path);
+        CHECK_EQ(res2.text, res.text);
+        std::filesystem::remove_all(dir, ec);
+    }
+
+    // Gravação ANSI recusa caracteres fora da página de código local
+    // (ex.: emoji não existe em CP-1252) para não corromper o arquivo.
+    if (GetACP() == 1252) {
+        const auto path = std::filesystem::temp_directory_path() / L"pm_accent_bad.ini";
+        std::string techErr;
+        const std::wstring bad = L"BEM\u2013VINDO \u0416\r\n"; // vem-vindo + cirílico (fora de CP1252)
+        const bool wrote = TextFileIO::writeWide(path, bad, TextEncoding::Ansi, techErr);
+        CHECK_MSG(!wrote, "ANSI recusa emoji (caracteres fora de CP1252)");
+        std::error_code ec;
+        std::filesystem::remove_all(path, ec);
+    }
+}
+
 } // namespace
 
 int main()
@@ -448,6 +509,7 @@ int main()
     testLocateFiles();
     testValidation();
     testReadingScopes();
+    testTextFileIOAccents();
 
     std::cout << "\n" << (g_checks - g_failures) << "/" << g_checks << " ok\n";
     if (g_failures != 0) {

@@ -21,6 +21,10 @@ MainWindow::ContentPane::ContentPane(juce::TabbedComponent& tabs,
     addAndMakeVisible(m_tabs);
     addAndMakeVisible(m_status);
     m_status.setColour(juce::Label::textColourId, juce::Colours::grey);
+    // Fonte menor para o status caber na barra mesmo com caminhos longos
+    // (antes, caminho grande cortava a informação do playlist.ini na tela).
+    m_status.setFont(juce::Font(juce::FontOptions(12.0f)));
+    m_status.setJustificationType(juce::Justification::left);
 }
 
 void MainWindow::ContentPane::resized()
@@ -236,9 +240,12 @@ void MainWindow::refreshFromLocator()
     m_configTab.refreshFromController();
     m_codesTab.reload();
 
-    std::wstring status = L"Playlist.exe: " + exe;
-    if (!m_controller.path().empty()) {
-        status += L"   |   playlist.ini: " + m_controller.path().wstring();
+    std::wstring status;
+    if (m_controller.path().empty()) {
+        status = L"playlist.ini: (não encontrado)   |   Playlist.exe: " + exe;
+    } else {
+        status = L"playlist.ini: " + m_controller.path().wstring() +
+                 L"   |   Playlist.exe: " + exe;
     }
     if (!m_controller.lastLoadMessage().empty()) {
         status += L"   |   " + m_controller.lastLoadMessage();

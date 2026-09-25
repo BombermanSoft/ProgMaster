@@ -6,6 +6,8 @@
 
 #include <cwctype>
 
+#include "core/Log.h"
+
 namespace {
 
 bool existsOnDisk(const std::filesystem::path& path)
@@ -46,9 +48,47 @@ std::filesystem::path PlaylistInstallation::installFolder() const
 
 std::filesystem::path PlaylistInstallation::playlistIniPath() const
 {
+    if (m_exePath.empty()) {
+        return {};
+    }
+
     const std::filesystem::path root = installFolder();
     const std::filesystem::path exeDir = m_exePath.parent_path();
-    return firstExisting({ root / L"playlist.ini", exeDir / L"playlist.ini" });
+
+    // Candidatas em ordem de prioridade: exeDir primeiro (valor documentado:
+    // o ini fica na MESMA pasta do Playlist.exe), depois a raiz da instalação.
+    // Ex.: C:\Playlist\pgm\Playlist.exe + playlist.ini na mesma pasta.
+    std::vector<std::filesystem::path> candidates;
+    const auto pushIfNew = [&candidates](const std::filesystem::path& p) {
+        const auto it = std::find(candidates.begin(), candidates.end(), p);
+        if (it == candidates.end()) {
+            candidates.push_back(p);
+        }
+    };
+    pushIfNew(exeDir / L"playlist.ini");
+    pushIfNew(exeDir / L"Playlist.ini");
+    pushIfNew(root / L"playlist.ini");
+
+    // Fallback defensivo: sobe na árvore a partir da pasta do exe procurando
+    // o playlist.ini (ex.: exe em C:\Playlist\sistema\pgm e ini em
+    // C:\Playlist). Para nunca varrer o disco inteiro, paramos no pai do
+    // exeDir (primeiro nível acima basta para as instalações reais).
+    if (exeDir != exeDir.parent_path()) {
+        pushIfNew(exeDir.parent_path() / L"playlist.ini");
+    }
+
+    for (const auto& c : candidates) {
+        Log::info(L"playlistIniPath: testando [" + c.wstring() + L"]");
+    }
+
+    const std::filesystem::path found = firstExisting(candidates);
+    if (found.empty()) {
+        Log::info(L"playlistIniPath: nenhum playlist.ini encontrado "
+                  L"(exeDir=" + exeDir.wstring() + L")");
+    } else {
+        Log::info(L"playlistIniPath: encontrado [" + found.wstring() + L"]");
+    }
+    return found;
 }
 
 std::filesystem::path PlaylistInstallation::foldersXmlPath() const

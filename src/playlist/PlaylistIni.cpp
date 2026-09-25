@@ -2,6 +2,7 @@
 
 #include <windows.h>
 
+#include <cstring>
 #include <utility>
 
 #include "core/Log.h"
@@ -97,6 +98,18 @@ bool PlaylistIni::load(std::wstring& content,
     content = result.text;
     m_encoding = result.encoding;
     m_originalBytes = std::move(result.originalBytes);
+
+    const char* encName = "?";
+    switch (m_encoding) {
+    case TextEncoding::Utf8:    encName = "Utf8"; break;
+    case TextEncoding::Utf8Bom: encName = "Utf8Bom"; break;
+    case TextEncoding::Utf16Le: encName = "Utf16Le"; break;
+    case TextEncoding::Utf16Be: encName = "Utf16Be"; break;
+    case TextEncoding::Ansi:    encName = "Ansi(CP_ACP)"; break;
+    }
+    Log::info(m_displayName +
+              L": codificacao=" + std::wstring(encName, encName + std::strlen(encName)) +
+              L" em " + m_path.wstring());
     return true;
 }
 
