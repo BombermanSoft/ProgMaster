@@ -40,7 +40,7 @@ void CodesTab::reload()
     m_table.updateContent();
 
     if (foldersPath.empty()) {
-        m_statusLabel.setText("Arquivo folders.xml não encontrado na instalação.",
+        m_statusLabel.setText(L"Arquivo folders.xml não encontrado na instalação.",
                               juce::dontSendNotification);
         m_summaryLabel.setText("Nenhum registro carregado.", juce::dontSendNotification);
         return;

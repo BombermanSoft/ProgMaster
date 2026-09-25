@@ -47,7 +47,7 @@ public:
 
         m_removeButton.setButtonText("Remover");
         m_removeButton.setTooltip(
-            "Apaga a seção ['" + jstr(readconf::sectionNameFor(m_scope)) +
+            L"Apaga a seção ['" + jstr(readconf::sectionNameFor(m_scope)) +
             "'] inteira (cabeçalho e linhas).");
         m_removeButton.onClick = [this] { m_host.onRemoveScope(m_scope); };
         addAndMakeVisible(m_removeButton);
@@ -67,13 +67,13 @@ public:
                                    ? juce::Colours::orange
                                    : juce::Colours::lime);
             m_status.setText(snap.option == readconf::FormatOption::Unknown
-                                 ? "Configuração presente (não reconhecida —"
-                                   " preservada no salvamento)"
-                                 : "Configurado",
+? L"Configuração presente (não reconhecida —"
+                                    L" preservada no salvamento)"
+                                  : L"Configurado",
                              juce::dontSendNotification);
         } else {
             m_status.setColour(juce::Label::textColourId, juce::Colours::tomato);
-            m_status.setText("Não configurado (seção ausente)", juce::dontSendNotification);
+            m_status.setText(L"Não configurado (seção ausente)", juce::dontSendNotification);
         }
 
         buildCombo();
@@ -262,11 +262,11 @@ public:
         m_name.onTextChange = [this] { m_host.onRowChanged(m_position); };
         addAndMakeVisible(m_name);
 
-        m_address.setTooltip("Endereço da afiliada (ex.: 192.168.0.50).");
+        m_address.setTooltip(L"Endereço da afiliada (ex.: 192.168.0.50).");
         m_address.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff3c3c3c));
         m_address.setColour(juce::TextEditor::textColourId, juce::Colours::white);
         m_address.setText(jstr(address), juce::dontSendNotification);
-        m_address.setTextToShowWhenEmpty(juce::String("ENDEREÇO"), juce::Colours::grey);
+        m_address.setTextToShowWhenEmpty(juce::String(L"ENDEREÇO"), juce::Colours::grey);
         m_address.onTextChange = [this] { m_host.onRowChanged(m_position); };
         addAndMakeVisible(m_address);
 
@@ -375,7 +375,7 @@ public:
             }
         } else {
             m_info.setColour(juce::Label::textColourId, juce::Colours::orange);
-            m_info.setText("A seção [AFILIADAS] não existe no playlist.ini.", juce::dontSendNotification);
+            m_info.setText(L"A seção [AFILIADAS] não existe no playlist.ini.", juce::dontSendNotification);
             m_addSection.setVisible(true);
             m_addRow.setVisible(false);
         }
@@ -429,11 +429,11 @@ ConfiguratorTab::ConfiguratorTab(PlaylistConfigController& controller)
     m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
     addAndMakeVisible(m_dirtyLabel);
 
-m_textModeButton.setButtonText("\u270E  Visualizar como texto");
+m_textModeButton.setButtonText(L"\u270E  Visualizar como texto");
     m_textModeButton.setTooltip(
-        "Grava as alterações em disco e abre o playlist.ini no Bloco de "
-        "Notas do Windows para edição manual. Ao voltar a esta guia, o "
-        "arquivo é lido do disco novamente.");
+        L"Grava as alterações em disco e abre o playlist.ini no Bloco de "
+        L"Notas do Windows para edição manual. Ao voltar a esta guia, o "
+        L"arquivo é lido do disco novamente.");
     m_textModeButton.onClick = [this] { openInNotepad(); };
     addAndMakeVisible(m_textModeButton);
 
@@ -679,7 +679,7 @@ void ConfiguratorTab::layoutContent()
 void ConfiguratorTab::updateDirtyLabel()
 {
     if (m_controller.isDirty()) {
-        m_dirtyLabel.setText("alterações não salvas", juce::dontSendNotification);
+        m_dirtyLabel.setText(L"alterações não salvas", juce::dontSendNotification);
         m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
     } else {
         m_dirtyLabel.setText("documento em dia", juce::dontSendNotification);

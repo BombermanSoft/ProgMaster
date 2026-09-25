@@ -113,8 +113,8 @@ void testGenerateRules()
     expectLines(ConfigScope::Comercial, FormatOption::Auto, L"FORMATO=AUTO", L"", __LINE__);
     expectLines(ConfigScope::Comercial, FormatOption::Single, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa.txt", __LINE__);
     expectLines(ConfigScope::Comercial, FormatOption::Weekly, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%a.txt", __LINE__);
-    expectLines(ConfigScope::Comercial, FormatOption::CommercialDay, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%d", __LINE__);
-    expectLines(ConfigScope::Comercial, FormatOption::CommercialDate, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y", __LINE__);
+    expectLines(ConfigScope::Comercial, FormatOption::CommercialDay, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%d.txt", __LINE__);
+    expectLines(ConfigScope::Comercial, FormatOption::CommercialDate, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y.txt", __LINE__);
     expectLines(ConfigScope::Comercial, FormatOption::Planner, L"FORMATO=TXT1", L"ARQUIVO=MAPAS\\%d-%m-%Y.TXT", __LINE__);
     expectLines(ConfigScope::Musical, FormatOption::Auto, L"FORMATO=AUTO", L"", __LINE__);
     expectLines(ConfigScope::Musical, FormatOption::Single, L"FORMATO=TXT1", L"ARQUIVO=grades\\Grade.txt", __LINE__);
@@ -156,6 +156,8 @@ void testInterpret()
     checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d", FormatOption::CommercialDay, L"day c");
     checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d-%m%Y", FormatOption::CommercialDate, L"date c (antigo %Y 2 dig. sem hífen)");
     checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d-%m-%Y", FormatOption::CommercialDate, L"date c novo");
+    checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d.txt", FormatOption::CommercialDay, L"day c novo .txt");
+    checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\Mapa%d-%m-%Y.txt", FormatOption::CommercialDate, L"date c novo .txt");
     checkMatch(ConfigScope::Comercial, L"TXT1", L"MAPAS\\%d-%m-%Y.TXT", FormatOption::Planner, L"planner c");
     checkMatch(ConfigScope::Musical, L"TXT1", L"grades\\Grade.txt", FormatOption::Single, L"single m");
     checkMatch(ConfigScope::Musical, L"TXT1", L"grades\\Grade%w.txt", FormatOption::Weekly, L"weekly m");
@@ -198,7 +200,18 @@ void testDocumentParseSerialize()
 
     PlaylistIniDocument doc;
     doc.setText(ini);
-    CHECK_EQ(doc.text(), ini); // round-trip idÃªntico (preservaÃ§Ã£o)
+    // Ordem canonica de secoes: a serializacao reordena os blocos conhecidos.
+    const std::wstring out2 = doc.text();
+    CHECK_MSG(out2.find(L"[BLOCO MUSICAL]") < out2.find(L"[BLOCO COMERCIAL]"),
+              "musical antes do comercial");
+    CHECK_MSG(out2.find(L"[BLOCO COMERCIAL]") < out2.find(L"[RELOGIO COMERCIAL]"),
+              "comercial antes do relogio");
+    CHECK_MSG(out2.find(L"[RELOGIO COMERCIAL]") < out2.find(L"[AFILIADAS]"),
+              "relogio antes das afiliadas");
+    CHECK_MSG(out2.find(L";Configura") != std::wstring::npos,
+              "comentario do topo preservado");
+    CHECK_MSG(out2.find(L"grades\\Grade%w.txt") != std::wstring::npos,
+              "conteudo musical preservado");
 
     // Leituras estruturais.
     std::wstring fmt;
@@ -350,7 +363,7 @@ void testDocumentOrderArquivoAposFormato()
     doc.applyFormat(ConfigScope::Comercial, FormatOption::CommercialDate);
     const std::wstring out = doc.text();
     const size_t pFormato = out.find(L"FORMATO=TXT1");
-    const size_t pArquivo = out.find(L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y");
+    const size_t pArquivo = out.find(L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y.txt");
     CHECK_MSG(pFormato != std::wstring::npos, "formato presente");
     CHECK_MSG(pArquivo != std::wstring::npos, "arquivo presente");
     CHECK_MSG(pFormato < pArquivo, "FORMATO vem antes de ARQUIVO");
@@ -564,6 +577,52 @@ void testTextFileIOAccents()
     }
 }
 
+void testCanonicalSectionOrder()
+{
+    // Ordem canonica de secoes: [BLOCO MUSICAL], [RELÓGIO MUSICAL],
+    // [BLOCO COMERCIAL], [RELOGIO COMERCIAL], [AFILIADAS]. Mesmo com secoes
+    // ausentes, ao ser criada a secao entra no seu lugar correspondente.
+    PlaylistIniDocument doc;
+    doc.setText(
+        L"[RELOGIO COMERCIAL]\nFORMATO=TXT1\n"
+        L"[BLOCO COMERCIAL]\nFORMATO=AUTO\n"
+        L"[AFILIADAS]\nAFILIADA=192.168.0.3:3030\n"
+        L"[DESCONHECIDA]\nCHAVE_EXTRA=x\n");
+    const std::wstring out = doc.text();
+    CHECK_MSG(out.find(L"[BLOCO COMERCIAL]") < out.find(L"[RELOGIO COMERCIAL]"),
+              "comercial antes do relogio");
+    CHECK_MSG(out.find(L"[RELOGIO COMERCIAL]") < out.find(L"[AFILIADAS]"),
+              "relogio antes das afiliadas");
+    CHECK_MSG(out.find(L"[AFILIADAS]") < out.find(L"[DESCONHECIDA]"),
+              "afiliadas antes da desconhecida");
+    CHECK_MSG(out.find(L"CHAVE_EXTRA=x") != std::wstring::npos,
+              "conteudo desconhecido preservado");
+
+    // Secao ausente criada no lugar canonico: musical antes do comercial.
+    PlaylistIniDocument doc2;
+    doc2.setText(L"[BLOCO COMERCIAL]\r\nFORMATO=AUTO\r\n");
+    CHECK_MSG(doc2.applyFormat(ConfigScope::Musical, FormatOption::Weekly),
+              "aplica formato musical");
+    const std::wstring out2 = doc2.text();
+    CHECK_MSG(out2.find(L"[BLOCO MUSICAL]") < out2.find(L"[BLOCO COMERCIAL]"),
+              "musical criado antes do comercial");
+    CHECK_MSG(out2.find(L"ARQUIVO=grades\\Grade%a.txt") != std::wstring::npos,
+              "conteudo musical gerado");
+
+    // RELOGIO COMERCIAL e AFILIADAS entram nas posicoes canonicas.
+    CHECK_MSG(doc2.applyFormat(ConfigScope::RelogioComercial,
+                               FormatOption::Weekly),
+              "aplica formato relogio");
+    CHECK_MSG(doc2.ensureAfiliadasSection(), "cria afiliadas");
+    const std::wstring out3 = doc2.text();
+    CHECK_MSG(out3.find(L"[BLOCO MUSICAL]") < out3.find(L"[BLOCO COMERCIAL]"),
+              "musical primeiro");
+    CHECK_MSG(out3.find(L"[BLOCO COMERCIAL]") < out3.find(L"[RELOGIO COMERCIAL]"),
+              "comercial antes do relogio");
+    CHECK_MSG(out3.find(L"[RELOGIO COMERCIAL]") < out3.find(L"[AFILIADAS]"),
+              "relogio antes das afiliadas");
+}
+
 } // namespace
 
 int main()
@@ -585,6 +644,7 @@ int main()
     testValidation();
     testReadingScopes();
     testTextFileIOAccents();
+    testCanonicalSectionOrder();
 
     std::cout << "\n" << (g_checks - g_failures) << "/" << g_checks << " ok\n";
     if (g_failures != 0) {

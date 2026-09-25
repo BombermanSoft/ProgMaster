@@ -55,8 +55,8 @@ MainWindow::MainWindow(PlaylistLocator& locator)
       m_contentPane(m_tabs, m_statusLabel)
 {
     m_tabs.addTab("Editor", juce::Colour(0xff2b2b2b), &m_editorTab, false);
-    m_tabs.addTab("Configuração", juce::Colour(0xff2b2b2b), &m_configTab, false);
-    m_tabs.addTab("Códigos", juce::Colour(0xff2b2b2b), &m_codesTab, false);
+    m_tabs.addTab(L"Configuração", juce::Colour(0xff2b2b2b), &m_configTab, false);
+    m_tabs.addTab(L"Códigos", juce::Colour(0xff2b2b2b), &m_codesTab, false);
     m_tabs.setCurrentTabIndex(TAB_EDITOR);
     m_tabs.setColour(juce::TabbedButtonBar::tabTextColourId, juce::Colours::lightgrey);
     m_tabs.setColour(juce::TabbedButtonBar::frontTextColourId, juce::Colours::white);
@@ -100,9 +100,9 @@ void MainWindow::requestCloseWithConfirmation()
 
     auto options = juce::MessageBoxOptions()
                        .withIconType(juce::MessageBoxIconType::WarningIcon)
-                       .withTitle("Alterações não salvas")
-                       .withMessage("Existem alterações não salvas.\n"
-                                    "O que deseja fazer?")
+                       .withTitle(L"Alterações não salvas")
+                       .withMessage(L"Existem alterações não salvas.\n"
+                                    L"O que deseja fazer?")
                        .withButton("Salvar")
                        .withButton("Descartar")
                        .withButton("Cancelar")
@@ -131,22 +131,22 @@ juce::PopupMenu MainWindow::getMenuForIndex(int topLevelMenuIndex,
     juce::PopupMenu menu;
     switch (topLevelMenuIndex) {
     case 0: // Arquivo
-        menu.addItem(IDM_FILE_CONFIG_MGR, "Configuração de pastas");
+        menu.addItem(IDM_FILE_CONFIG_MGR, L"Configuração de pastas");
         menu.addItem(IDM_FILE_LIST_IDS, "Lista de IDs (folders.xml)");
-        menu.addItem(IDM_FILE_CHANGE_LOCATION, "Trocar localização...");
+        menu.addItem(IDM_FILE_CHANGE_LOCATION, L"Trocar localização...");
         menu.addSeparator();
         menu.addItem(IDM_FILE_SAVE, "Salvar");
-        menu.addItem(IDM_FILE_DISCARD, "Descartar alterações");
+        menu.addItem(IDM_FILE_DISCARD, L"Descartar alterações");
         menu.addSeparator();
         menu.addItem(IDM_FILE_EXIT, "Sair");
         break;
     case 1: // Editar
-        menu.addItem(IDM_EDIT_PROGRAMACAO, "Programação");
+        menu.addItem(IDM_EDIT_PROGRAMACAO, L"Programação");
         menu.addItem(IDM_EDIT_MAPA_COMERCIAL, "Mapa Comercial");
         menu.addItem(IDM_EDIT_GRADES, "Grades Musicais");
         menu.addSeparator();
-        menu.addItem(IDM_EDIT_RELOGIO_COMERCIAL, "Relógio Comercial");
-        menu.addItem(IDM_EDIT_RELOGIO_MUSICAL, "Relógio Musical");
+        menu.addItem(IDM_EDIT_RELOGIO_COMERCIAL, L"Relógio Comercial");
+        menu.addItem(IDM_EDIT_RELOGIO_MUSICAL, L"Relógio Musical");
         break;
     default:
         break;
@@ -278,7 +278,7 @@ void MainWindow::openLocateDialog()
     if (!m_locator.validatePath(chosen, message)) {
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::WarningIcon,
-            "Localização do Playlist",
+            L"Localização do Playlist",
             jstr(message));
         return;
     }
@@ -292,8 +292,8 @@ void MainWindow::openConfigManager()
     if (mgr.empty() || !std::filesystem::exists(mgr)) {
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::WarningIcon,
-            "Configuração de pastas",
-            "O ConfigManager.exe não foi encontrado junto à instalação.");
+            L"Configuração de pastas",
+            L"O ConfigManager.exe não foi encontrado junto à instalação.");
         return;
     }
     ShellExecuteW(nullptr, L"open", mgr.c_str(), nullptr, nullptr, SW_SHOWNORMAL);

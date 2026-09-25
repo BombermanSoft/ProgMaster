@@ -1,5 +1,6 @@
 #include "readconf/PlaylistIniDocument.h"
 
+#include <algorithm>
 #include <cwctype>
 
 namespace readconf {
@@ -67,6 +68,22 @@ std::wstring foldAscii(const std::wstring& s)
         c = foldAccent(c);
     }
     return r;
+}
+
+// Ordem canônica das seções do playlist.ini (pedido do usuário):
+// [BLOCO MUSICAL], [RELÓGIO MUSICAL], [BLOCO COMERCIAL], [RELOGIO COMERCIAL],
+// [AFILIADAS]. A ordem vale mesmo com seções ausentes — uma seção adicionada
+// depois entra no seu lugar correspondente. Devolve -1 para seções
+// desconhecidas (que são preservadas, sem reordenar entre si). Recebe o nome
+// já NORMALIZADO (minúsculas, acentos dobrados) — ver normalizedSection().
+int canonicalSectionRank(const std::wstring& normalizedName)
+{
+    if (normalizedName == L"bloco musical")     return 1;
+    if (normalizedName == L"relogio musical")   return 2;
+    if (normalizedName == L"bloco comercial")   return 3;
+    if (normalizedName == L"relogio comercial") return 4;
+    if (normalizedName == L"afiliadas")         return 5;
+    return -1;
 }
 
 bool isBlank(const std::wstring& s)
@@ -218,11 +235,72 @@ void PlaylistIniDocument::parseLine(const std::wstring& raw)
 
 std::wstring PlaylistIniDocument::text() const
 {
-    std::wstring out;
-    for (const IniLine& line : m_lines) {
-        out += line.raw;
-        out += m_eol;
+    // ----------------------------------------------------------------
+    // Ordem canônica (consulte canonicalSectionRank): a serialização ordena
+    // os blocos das seções CONHECIDAS na ordem fixa, mesmo que o arquivo no
+    // disco esteja em outra ordem; as seções desconhecidas são preservadas
+    // DEPOIS, na ordem original, junto com o seu conteúdo. Se não há nenhuma
+    // seção conhecida, a serialização é fiel (nenhum reordenamento).
+    // ----------------------------------------------------------------
+    struct SectionBlock {
+        int begin;
+        int end;
+        int rank; // 1..5 conhecidas; -1 desconhecida
+    };
+    std::vector<SectionBlock> blocks;
+    int firstHeader = -1;
+    for (int i = 0; i < static_cast<int>(m_lines.size()); ++i) {
+        if (m_lines[static_cast<size_t>(i)].kind == IniLineKind::Section) {
+            if (firstHeader < 0) {
+                firstHeader = i;
+            }
+            const int end = sectionEnd(i);
+            const int rank = canonicalSectionRank(
+                m_lines[static_cast<size_t>(i)].sectionName);
+            blocks.push_back({ i, end, rank });
+            i = end - 1; // pula o corpo do bloco
+        }
     }
+
+    bool anyKnown = false;
+    for (const SectionBlock& b : blocks) {
+        if (b.rank >= 1) {
+            anyKnown = true;
+            break;
+        }
+    }
+
+    std::wstring out;
+    auto appendRange = [this, &out](int begin, int end) {
+        for (int i = begin; i < end; ++i) {
+            out += m_lines[static_cast<size_t>(i)].raw;
+            out += m_eol;
+        }
+    };
+
+    if (!anyKnown) {
+        appendRange(0, static_cast<int>(m_lines.size()));
+    } else {
+        appendRange(0, firstHeader);
+        std::stable_sort(
+            blocks.begin(), blocks.end(),
+            [](const SectionBlock& a, const SectionBlock& b) {
+                if (a.rank == b.rank) {
+                    return false; // mantém a ordem original
+                }
+                if (a.rank < 0) {
+                    return false; // desconhecidas depois das conhecidas
+                }
+                if (b.rank < 0) {
+                    return true;
+                }
+                return a.rank < b.rank;
+            });
+        for (const SectionBlock& b : blocks) {
+            appendRange(b.begin, b.end);
+        }
+    }
+
     if (!m_hasTrailingEol && !m_lines.empty()) {
         // Remove o EOL final adicionado acima.
         out.resize(out.size() - m_eol.size());
@@ -360,18 +438,52 @@ int PlaylistIniDocument::ensureSection(ConfigScope scope)
         return existing;
     }
 
-    // Adiciona a seção no fim do documento.
-    if (!m_lines.empty() && m_lines.back().kind != IniLineKind::Blank) {
-        IniLine blank;
-        m_lines.push_back(blank);
+    // Posição canônica (ver canonicalSectionRank): a seção entra DEPOIS da
+    // última seção conhecida de rank menor presente; senão ANTES da primeira
+    // de rank maior; senão no fim do documento.
+    const int rank = canonicalSectionRank(normalizedSection(sectionNameFor(scope)));
+    int insertAt = -1;
+    if (rank >= 1) {
+        int lowerRankEnd = -1;
+        int higherRankHeader = -1;
+        for (size_t i = 0; i < m_lines.size(); ++i) {
+            if (m_lines[i].kind == IniLineKind::Section) {
+                const int r = canonicalSectionRank(m_lines[i].sectionName);
+                if (r < 0) {
+                    continue;
+                }
+                if (r < rank) {
+                    lowerRankEnd = sectionEnd(static_cast<int>(i));
+                } else if (r > rank && higherRankHeader < 0) {
+                    higherRankHeader = static_cast<int>(i);
+                }
+            }
+        }
+        if (lowerRankEnd >= 0) {
+            insertAt = lowerRankEnd;
+        } else if (higherRankHeader >= 0) {
+            insertAt = higherRankHeader;
+        }
     }
+    if (insertAt < 0) {
+        insertAt = static_cast<int>(m_lines.size());
+    }
+
+    // Separador em branco antes do cabeçalho, se necessário.
+    if (insertAt > 0 &&
+        m_lines[static_cast<size_t>(insertAt - 1)].kind != IniLineKind::Blank) {
+        IniLine blank;
+        m_lines.insert(m_lines.begin() + insertAt, blank);
+        ++insertAt;
+    }
+
     IniLine header;
     header.kind = IniLineKind::Section;
     header.sectionName = normalizedSection(sectionNameFor(scope));
     header.rawSectionName = sectionNameFor(scope);
     header.raw = L"[" + sectionNameFor(scope) + L"]";
-    m_lines.push_back(header);
-    return static_cast<int>(m_lines.size()) - 1;
+    m_lines.insert(m_lines.begin() + insertAt, header);
+    return insertAt;
 }
 
 bool PlaylistIniDocument::applyFormat(ConfigScope scope, FormatOption option)

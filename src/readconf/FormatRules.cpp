@@ -408,14 +408,14 @@ GeneratedFormat generate(ConfigScope scope, FormatOption option)
         break;
     case FormatOption::CommercialDay:
         if (scope == ConfigScope::Comercial) {
-            out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%d");
+            out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%d.txt");
         } else {
             out.lines.clear();
         }
         break;
     case FormatOption::CommercialDate:
         if (scope == ConfigScope::Comercial) {
-            out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y");
+            out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%d-%m-%Y.txt");
         } else {
             out.lines.clear();
         }
@@ -476,10 +476,10 @@ std::vector<std::wstring> expectedFileBases(ConfigScope scope,
         }
         break;
     case FormatOption::CommercialDay:
-        bases.push_back(L"MapaDD");
+        bases.push_back(L"MapaDD.txt");
         break;
     case FormatOption::CommercialDate:
-        bases.push_back(L"MapaDD-MM-AAAA");
+        bases.push_back(L"MapaDD-MM-AAAA.txt");
         break;
     case FormatOption::Planner:
         bases.push_back(L"DD-MM-AAAA.TXT");

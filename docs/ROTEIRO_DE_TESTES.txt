@@ -2,6 +2,8 @@
 ROTEIRO DE TESTES MANUAIS — ProgMaster (Fase 2, rodada 25/09/2026)
 Uso: validar as correções da rodada. O item 1 (reconhecimento do
 playlist.ini) é o MAIS IMPORTANTE — teste-o primeiro e com cuidado.
+Nesta rodada, também confira os itens NOVOS 9 (acentos na interface),
+10 (ARQUIVO terminando em .txt) e 11 (ordem canônica das seções).
 =======================================================================
 
 PREPARAÇÃO
@@ -145,6 +147,77 @@ PREPARAÇÃO
      Corrigir e salvar: arquivo gravado na codificação original.
 8.3. Com alterações não salvas, fechar a janela: pergunta
      Salvar / Descartar / Cancelar.
+
+-----------------------------------------------------------------------
+9) ACENTOS NA INTERFACE (Configuração, Códigos, Relógio, Programação)
+-----------------------------------------------------------------------
+9.1. Iniciar o ProgMaster e olhar as ABAS da janela:
+     "Editor" | "Configuração" | "Códigos".
+     ESPERADO: "Configuração" e "Códigos" aparecem COM os acentos e o ç
+     corretos ("Configuração", não "ConfiguraÃ§Ã£o"/"Configuraçao").
+
+9.2. Abrir o menu "Arquivo": itens "Configuração de pastas",
+     "Trocar localização..." (com ç) e "Descartar alterações".
+     Abrir o menu "Editar": "Programação", "Relógio Comercial",
+     "Relógio Musical" (com acento no ó).
+     ESPERADO: todos os acentos aparecem normais.
+
+9.3. Guia Configuração ▸ [AFILIADAS]: campos vazios mostram os textos
+     cinza "AFILIADA", "ENDEREÇO" (com Ç) e "PORTA"; status com texto
+     acentuado ("Não configurado (seção ausente)") aparece certo.
+     Botão "✎ Visualizar como texto" mostra o símbolo de lápis e o
+     texto "Visualizar como texto" (sem símbolo estranho).
+
+9.4. Fechar a janela sem salvar: o diálogo mostra
+     "Alterações não salvas" / "Existem alterações não salvas." com
+     acentos corretos.
+
+-----------------------------------------------------------------------
+10) ARQUIVO DOS ITENS TERMINA EM .txt
+-----------------------------------------------------------------------
+10.1. Guia Configuração ▸ cartão [BLOCO COMERCIAL], escolher no ComboBox
+      "Commercial Dia" e Salvar (no playlist.ini de teste).
+      ESPERADO: a linha gravada é ARQUIVO=MAPAS\Mapa%d.txt
+      (com ".txt" no final).
+
+10.2. Escolher "Commercial Data" e Salvar.
+      ESPERADO: ARQUIVO=MAPAS\Mapa%d-%m-%Y.txt (com ".txt").
+
+10.3. Escolher os demais formatos e conferir que TODOS os ARQUIVO
+      terminam com .txt (Mapa.txt, Mapa%a.txt, %d-%m-%Y.TXT, etc.).
+      Os que já tinham .txt/.TXT permanecem como estavam.
+
+10.4. ABRIR um playlist.ini ANTIGO que ainda tenha ARQUIVO=MAPAS\Mapa%d
+      ou ARQUIVO=MAPAS\Mapa%d-%m-%Y (SEM o .txt).
+      ESPERADO: continua reconhecido como "Commercial Dia"/"Commercial
+      Data" (a leitura aceita com e sem o .txt) — e ao Salvar o arquivo
+      é normalizado para o formato com .txt.
+
+-----------------------------------------------------------------------
+11) ORDEM CANÔNICA DAS SEÇÕES DO PLAYLIST.INI
+-----------------------------------------------------------------------
+11.1. No playlist.ini de teste/de instalação, abrir o arquivo (Editar ▸
+      Programação) e conferir a ORDEM dos cabeçalhos de seção depois de
+      qualquer Salvamento:
+      ESPERADO (sempre nesta ordem, mesmo com algumas seções faltando):
+        [BLOCO MUSICAL]
+        [RELÓGIO MUSICAL]
+        [BLOCO COMERCIAL]
+        [RELOGIO COMERCIAL]
+        [AFILIADAS]
+      As seções são reordenadas para essa sequência ao serializar;
+      seções desconhecidas (ex.: uma seção futura) são preservadas no
+      fim do arquivo.
+
+11.2. Num arquivo SEM [BLOCO MUSICAL]: na guia Configuração, escolher
+      um formato no cartão "Bloco Musical" (ex.: Semanal) e Salvar.
+      ESPERADO: a seção [BLOCO MUSICAL] é criada ANTES de
+      [BLOCO COMERCIAL] (no "campo correspondente"), não no fim.
+
+11.3. Num arquivo SEM [AFILIADAS]: clicar em "+ Adicionar afiliadas"
+      e Salvar.
+      ESPERADO: [AFILIADAS] é criada DEPOIS de [RELOGIO COMERCIAL]
+      (última seção), não antes.
 
 -----------------------------------------------------------------------
 RESULTADO

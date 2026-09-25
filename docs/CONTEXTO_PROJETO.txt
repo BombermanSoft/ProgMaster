@@ -3,6 +3,8 @@ CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
 Data: 25/09/2026
 Status: Etapa 2 concluída (build limpo /W4, 165/165 testes, app abre);
         rodada de correções de interface 25/09 (7 bugs — ver J.9);
+        rodada 2 de 25/09: acentos na interface (causa raiz), ARQUIVO
+        com .txt e ordem canônica das seções (ver J.10 / K.7);
         testes manuais pendentes (docs\ROTEIRO_DE_TESTES.txt)
 =======================================================================
 
@@ -48,7 +50,7 @@ B.2. Implementado (Etapa 2)
   [x] Interface JUCE completa: menus Arquivo/Editar, abas Editor |
       Configuração | Códigos, diálogos modais, mensagens, ComboBox e
       tabelas — src/app/.
-  [x] Leitura dos formatos do playlist.ini — src/readconf/ (116 testes,
+  [x] Leitura dos formatos do playlist.ini — src/readconf/ (165 testes,
       ver J.7): mapeia cada escopo para a linha ARQUIVO esperada e para
       o token/formato; valida endereço/porta das afiliadas. O
       reconhecimento é TOLERANTE a variações reais do arquivo: seções com
@@ -95,6 +97,22 @@ B.2. Implementado (Etapa 2)
   [x] Dias da semana com grafia canônica "Sáb" (ex.: MapaSáb.txt),
       com procura TOLERANTE a acento/caixa para arquivos antigos
       "Sab" no disco (RelogioSab.txt ainda é reconhecido);
+  [x] ACENTOS NA INTERFACE (labels/menus/diálogos) corrigidos pela
+      CAUSA RAIZ: o juce::String(const char*) decodifica o texto como
+      ASCII — literais UTF-8 com acento viravam "ConfiguraÃ§Ã£o". Todas
+      as strings visíveis acentuadas agora são literais WIDE (L"..."),
+      decodificadas em UTF-16 corretamente (ver K.7);
+  [x] TODOS os itens ARQUIVO gerados terminam com ".txt"
+      (Commercial Dia -> MAPAS\Mapa%d.txt; Commercial Data ->
+      MAPAS\Mapa%d-%m-%Y.txt; os demais já tinham). A leitura continua
+      tolerante: um ARQUIVO antigo sem ".txt" ainda é reconhecido e é
+      normalizado ao Salvar;
+  [x] ORDEM CANÔNICA DAS SEÇÕES no playlist.ini ao serializar:
+      [BLOCO MUSICAL], [RELÓGIO MUSICAL], [BLOCO COMERCIAL],
+      [RELOGIO COMERCIAL], [AFILIADAS] — vale mesmo com seções
+      ausentes; uma seção adicionada entra no seu "campo
+      correspondente" (antes/depois das vizinhas canônicas) e não no
+      fim; seções desconhecidas são preservadas depois;
   [x] Campos de afiliada com texto de dica cinza (placeholders)
       AFILIADA/ENDEREÇO/PORTA — digitação direta, sem apagar nada;
   [x] Fechamento com confirmação Salvar/Descartar/Cancelar quando há
@@ -350,6 +368,39 @@ J.9. Rodada de correções de interface (25/09/2026):
   - Commits: 2f6472c (7 bugs) e de98857 (reabrir abas ao trocar
     localização).
 
+  J.10. Rodada 2 de correções (25/09/2026):
+  - CAUSA RAIZ dos acentos na interface: o juce::String(const char*)
+    constrói o texto via CharPointer_ASCII — um literal UTF-8 como
+    "Configuração" era convertido byte a byte, virando "ConfiguraÃ§Ã£o".
+    Literais WIDE (L"...") passam por CharPointer_UTF16 e ficam
+    corretos — por isso partes da UI já apareciam certas (editor,
+    cartões — que usam jstr(wstring)) e os menus/abas não. Corrigidos
+    todos os literais acentuados voltados ao usuário em MainWindow
+    (abas/menus/diálogos), ConfiguratorTab (status, tooltips, botão
+    "✎ Visualizar como texto"), CodesTab (status) — agora em L"".
+    Confirmado por probe de compilação (/utf-8) em
+    Temp\opencode\encprobe.cpp (unidades UTF-16 e bytes UTF-8 exatos).
+  - ARQUIVO com ".txt": em FormatRules::generate, Commercial Dia gera
+    ARQUIVO=MAPAS\Mapa%d.txt e Commercial Data gera
+    ARQUIVO=MAPAS\Mapa%d-%m-%Y.txt. A interpretação (interpretArquivo)
+    já aceitava as duas grafias (com e sem .txt); testes novos cobrem a
+    nova grafia canônica e a antiga.
+  - Ordem canônica das seções (PlaylistIniDocument): canonicalSectionRank
+    posiciona [BLOCO MUSICAL], [RELÓGIO MUSICAL], [BLOCO COMERCIAL],
+    [RELOGIO COMERCIAL], [AFILIADAS]. text() reordena os blocos ao
+    serializar (seções desconhecidas preservadas depois, na ordem
+    original); ensureSection insere a seção criada no lugar canônico
+    (após a vizinha de menor rank / antes da de maior rank).
+  - Testes: atualizados para a ordem canônica (testDocumentParseSerialize
+    agora verifica a sequência; testDocumentOrderArquivoAposFormato com o
+    ARQUIVO de .txt) e acrescentado testCanonicalSectionOrder (fora de
+    ordem, seções ausentes criadas no lugar, desconhecidas preservadas).
+    O arquivo RulesTests.cpp tinha texto duplamente transcrito (mojibake
+    do próprio fonte) — os literais novos são ASCII/UTF-8 limpo.
+  - Observação: usuário testará manualmente (docs\ROTEIRO_DE_TESTES.txt,
+    itens 9/10/11 novos) — os testes automatizados não foram executados
+    nesta rodada por orientação do usuário.
+
 -----------------------------------------------------------------------
 K. PROBLEMAS CONHECIDOS / LIMITAÇÕES
 -----------------------------------------------------------------------
@@ -370,7 +421,16 @@ K.6. Localização da pasta de programação (24/09/2026): os arquivos
      C:\Playlist\pgm\Mapas). A leitura agora usa a pasta do exe (ver
      E.2/E.3); a base da instalação (raiz do drive) é usada apenas
      para derived classification. Validar em campo se houver
-     instalações com layout divergente.
+           instalações com layout divergente.
+K.7. Acentos na INTERFACE (causa raiz da rodada atual):
+      o `juce::String(const char*)` constrói strings via
+      `CharPointer_ASCII` — um literal UTF-8 como "Configuração"
+      era convertido byte a byte e aparecia como "ConfiguraÃ§Ã£o".
+      O problema é de CODIFICAÇÃO, não de acentos do sistema:
+      corrigido convertendo todos os literais acentuados ao
+      usuário para WIDE (L"...") que passam por `CharPointer_UTF16`.
+      Partes da UI já apareciam certas (editor, cartões) porque
+      usam `jstr(std::wstring)`.
 
 -----------------------------------------------------------------------
 L. PRÓXIMA ETAPA (A DEFINIR — aguarda especificação do cliente)
