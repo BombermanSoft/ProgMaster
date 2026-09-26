@@ -1,11 +1,12 @@
 =======================================================================
-ARQUITETURA DO CÓDIGO — ProgMaster (Etapa 2, JUCE)
-Data: 24/09/2026
+ARQUITETURA DO CÓDIGO — ProgMaster (Etapa 3, JUCE)
+Data: 26/09/2026
 =======================================================================
 
 RESUMO: núcleo em C++ puro (std::wstring + std::filesystem) separado da
 camada de interface JUCE. Toda a regra de formato vive em src/readconf,
-testada sem UI (116 testes). A UI (src/app) apenas "fonia" o núcleo.
+testada sem UI (183 testes). O RELÓGIO da Etapa 3 tem núcleo próprio em
+src/relogio (85 testes). A UI (src/app) apenas "fonia" os núcleos.
 
 -----------------------------------------------------------------------
 1. VISÃO GERAL / CAMADAS
@@ -13,8 +14,12 @@ testada sem UI (116 testes). A UI (src/app) apenas "fonia" o núcleo.
 +--------------------------------------------------------------+
 | src/app         — interface JUCE (namespace `app` em quase     |
 |                   tudo; MainWindow, ConfiguratorTab,          |
-|                   EditorTab, CodesTab, PlaylistConfigController|
+|                   EditorTab, RelogioEditorTab, RelogioEditor, |
+|                   BlocosTab, CodesTab, PlaylistConfigController|
 |                   LocatePlaylistDialog, ProgMasterApplication) |
++--------------------------------------------------------------+
+| src/relogio     — núcleo Etapa 3: modelo do arquivo de        |
+|                   RELÓGIO (horários + parâmetros) SEM JUCE     |
 +--------------------------------------------------------------+
 | src/readconf    — núcleo Etapa 2: documentos em memória,       |
 |                   regras de formato, validação de afiliadas    |
@@ -25,8 +30,8 @@ testada sem UI (116 testes). A UI (src/app) apenas "fonia" o núcleo.
 |    PlaylistInstallation, PlaylistIni, FoldersXml)              |
 +--------------------------------------------------------------+
 
-Regra de ouro: nada em core/models/playlist/readconf conhece JUCE;
-conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
+Regra de ouro: nada em core/models/playlist/readconf/relogio conhece
+JUCE; conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
 
 -----------------------------------------------------------------------
 2. ESCOPO DE CADA NAMESPACE / CLASSE
@@ -46,6 +51,14 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
   - CodesTab                (guia Códigos class App main table)
   - LocatePlaylistDialog    (diálogo modal Procurar Playlist.exe)
   - PlaylistConfigController(fonte única em memória do playlist.ini)
+  - RelogioEditorTab        (guia Relógio: sub-abas por arquivo,
+    Visual|Texto sobre o MESMO RelogioDocument, clipboard de
+    parâmetros COMPARTILHADO; resolve que arquivos abrir conforme o
+    escopo/Formato do playlist.ini via readconf)
+  - RelogioEditor           (editor VISUAL: linhas = horários, chips de
+    parâmetros, paleta "grudada", aria Início/Intervalo/Avulso,
+    Copiar/Colar)
+  - BlocosTab               (tela PROVISÓRIA Blocos Musicais/Comerciais)
   - jstr() / wstr()         (helpers de conversão, JuceHelpers.h)
 
 2.3. src/readconf (namespace readconf)
@@ -58,6 +71,16 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
     (relógio semanal: Relogio<dia>.txt)
   - ReadingConfiguration   interpretação dos escopos e validadores
   - ScopeSnapshot / AfiliadaSnapshot (DTOs)
+
+2.4. src/relogio (namespace relogio) — núcleo da Etapa 3
+  - RelogioDocument        modelo do arquivo de relógio: linhas cruas,
+    LINES e horários; round-trip EXATO (preserva CRLF/espaços/linhas
+    cruas); parse/emissão de horário HH:MM; adicionar horário no lugar
+    ordenado; parâmetros somente no MEIO da linha após o HH:MM.
+  - Parâmetros             enum ParamKind (/_alizada) + Param (kind/valor)
+    e paramText/parse; FIXO/DESCARTE/LOCAL/SAT/LOCKED (sem valor) e
+    ID/DUR (com valor). Só os PARÂMETROS CONHECIDOS viram chips; o
+    restante da linha permanece trailing preservado.
 
 -----------------------------------------------------------------------
 3. FLUXO DE DADOS DO playlist.ini
@@ -80,6 +103,15 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
 
   Erros: usuário -> juce::AlertWindow; técnico -> Log.txt.
 
+  RELÓGIOS (Etapa 3):
+    RelogioEditorTab (resolveSpecs) mapeia o escopo do playlist.ini para
+    os arquivos de relógio (Relogio.txt ou Relogio<dia>.txt) usando
+    readconf (senão sempre 1 arquivo). Cada página abre um
+    RelogioDocument por arquivo; RelogioEditor opera sobre ele; a página
+    em "Texto" usa o MESMO documento. Salvar = texto() -> TextFileIO
+    (ANSI/CP-1252). Ctrl+C/V de parâmetros usa um m_clipboard
+    COMPARTILHADO entre as páginas da guia.
+
 -----------------------------------------------------------------------
 4. REGRAS DE FORMATO (readconf) — o "coração" da Etapa 2
 -----------------------------------------------------------------------
@@ -101,9 +133,10 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
 -----------------------------------------------------------------------
   - Menus: MenuBarModel implementado pela MainWindow; itens usam ids
     confiáveis (kMenu* constexpr) e popup sensor _onMenuIndexChanged.
-  - Abas: juce::TabbedComponent com TabsAtTop; a guia Códigos é a
-    janela de "Lista de IDs" (menu Arquivo) e a Configuração é
-    "Programação".
+    Etapa 3: menu "Editar" = visual (Programação/Blocos/Relógios),
+    "Avançado" = textual (antigo "Editar").
+  - Abas: juce::TabbedComponent com TabsAtTop; Editor | Configuração |
+    Códigos | Relógio | Blocos.
   - Tabelas: juce::TableListBox com ModelColumnSpan; colunas
     redimensionáveis; double-click = "id para o clipboard".
   - Diálogos: DialogWindow::showModalDialog (7 params) ao procurar
@@ -130,6 +163,10 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
   - FontOptions NÃO tem withTypefaceStyle; TextEditor::setFont usa
     juce::Font(FontOptions(...)) (o ctor Font(name,style,size) antigo
     é deprecated C4996).
+  - Font NÃO tem getStringWidth -> juce::GlyphArrangement::getStringWidth
+    (JUCE 8.0.15).
+  - Component não tem mouseRightDown -> testar event.mods.isRightButtonDown()
+    dentro de mouseDown.
   - TabbedComponent exige orientação no ctor; sem setOutlineThickness.
   - DialogWindow::showModalDialog tem 7 parâmetros exatos.
   - JUCE 8.0.15 desliga modal loops por padrão (macro acima).
@@ -138,20 +175,27 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
 7. CODEPENDÊNCIAS DE ARQUIVO (o que dependencia o quê)
 -----------------------------------------------------------------------
   ProgMasterApplication -> Settings, Log, PlaylistLocator, MainWindow
-  MainWindow            -> PlaylistConfigController (dono),
-                           EditorTab, ConfiguratorTab, CodesTab,
-                           LocatePlaylistDialog, PlaylistInstallation.
-                           refreshFromLocator define a pasta DE
-                           PROGRAMAÇÃO = pasta do Playlist.exe (ex.:
-                           C:\Playlist\pgm) e passa ao controller via
-                           setInstallationFolder.
+MainWindow            -> PlaylistConfigController (dono),
+                            EditorTab, ConfiguratorTab, CodesTab,
+                            RelogioEditorTab, BlocosTab,
+                            LocatePlaylistDialog, PlaylistInstallation.
+                            refreshFromLocator define a pasta DE
+                            PROGRAMAÇÃO = pasta do Playlist.exe (ex.:
+                            C:\Playlist\pgm) e passa ao controller via
+                            setInstallationFolder; RelogioEditorTab
+                            acompanha a nova localização.
   ConfiguratorTab       -> readconf (ReadScope/Snapshots),
-                           app::ScopeCard/AfiliadasCard (friend)
+                            app::ScopeCard/AfiliadasCard (friend)
   CodesTab              -> FoldersXml, PlaylistInstallation
   EditorTab             -> juce::TextEditor; dados via controller
+  RelogioEditorTab      -> readconf (resolveSpecs/folderFor), relogio
+                            (RelogioDocument), RelogioEditor, TextFileIO
+  RelogioEditor         -> relogio::RelogioDocument (referência) e área
+                            de transferência compartilhada
   PlaylistConfigController -> PlaylistIniDocument, PlaylistIni,
-                           TextFileIO, ReadingConfiguration
+                            TextFileIO, ReadingConfiguration
   (Testes) tests\RulesTests -> readconf apenas (sem JUCE).
+  (Testes) relogio\tests\RelogioTests -> relogio apenas (sem JUCE).
 
 -----------------------------------------------------------------------
 8. DADOS PERSISTIDOS E CODIFICAÇÕES
@@ -167,9 +211,10 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
 9. CONSTRUÇÃO E TESTES
 -----------------------------------------------------------------------
   cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-  cmake --build build --config Release --target ProgMaster ProgMasterCoreTests
+  cmake --build build --config Release --target ProgMaster ProgMasterCoreTests ProgMasterRelogioTests
   -> 0 erros 0 warnings (/W4); ProgMaster.exe em build\ProgMaster_artefacts\Release\
-  -> ProgMasterCoreTests.exe 116/116 PASS  (build\Release\)
+  -> ProgMasterCoreTests.exe 183/183 PASS (build\Release\)
+  -> ProgMasterRelogioTests.exe 85/85 PASS (build\Release\)
 
   Observações: JUCE baixado por FetchContent (GIT_TAG 8.0.15 shallow);
   CMake LANGUAGES C CXX; /utf-8; CRT estática (/MT); targets próprios
@@ -180,5 +225,6 @@ conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
 -----------------------------------------------------------------------
   - Suíte de testes de GUI (manual hoje) e validação por click do
     callback MessageBoxOptions (0/1/2) — A DEFINIR.
-  - Ferramentas dedicadas para mapas/grades/relógios (Próxima etapa).
+  - Editor visual de Grades/Mapas e dos Blocos (tela provisória e
+    edição textual hoje) — aguarda EXEMPLO REAL (Próxima etapa).
   - Backups / identidade visual final (aguarda especificação).

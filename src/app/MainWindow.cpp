@@ -51,12 +51,15 @@ MainWindow::MainWindow(PlaylistLocator& locator)
       m_editorTab(m_controller, m_installation),
       m_codesTab(m_installation),
       m_configTab(m_controller),
+      m_relogioTab(m_controller, m_installation),
       m_tabs(juce::TabbedButtonBar::TabsAtTop),
       m_contentPane(m_tabs, m_statusLabel)
 {
     m_tabs.addTab("Editor", juce::Colour(0xff2b2b2b), &m_editorTab, false);
     m_tabs.addTab(L"Configuração", juce::Colour(0xff2b2b2b), &m_configTab, false);
     m_tabs.addTab(L"Códigos", juce::Colour(0xff2b2b2b), &m_codesTab, false);
+    m_tabs.addTab(L"Relógio", juce::Colour(0xff2b2b2b), &m_relogioTab, false);
+    m_tabs.addTab(L"Blocos", juce::Colour(0xff2b2b2b), &m_blocosTab, false);
     m_tabs.setCurrentTabIndex(TAB_EDITOR);
     m_tabs.setColour(juce::TabbedButtonBar::tabTextColourId, juce::Colours::lightgrey);
     m_tabs.setColour(juce::TabbedButtonBar::frontTextColourId, juce::Colours::white);
@@ -92,7 +95,8 @@ void MainWindow::ensurePlaylistPath()
 
 void MainWindow::requestCloseWithConfirmation()
 {
-    const bool dirty = m_controller.isDirty() || m_editorTab.hasUnsavedChanges();
+    const bool dirty = m_controller.isDirty() || m_editorTab.hasUnsavedChanges() ||
+                       m_relogioTab.hasUnsavedChanges();
     if (!dirty) {
         finishQuit();
         return;
@@ -123,7 +127,7 @@ void MainWindow::requestCloseWithConfirmation()
 
 juce::StringArray MainWindow::getMenuBarNames()
 {
-    return { "Arquivo", "Editar" };
+    return { "Arquivo", "Editar", L"Avançado" };
 }
 
 juce::PopupMenu MainWindow::getMenuForIndex(int topLevelMenuIndex,
@@ -141,13 +145,21 @@ juce::PopupMenu MainWindow::getMenuForIndex(int topLevelMenuIndex,
         menu.addSeparator();
         menu.addItem(IDM_FILE_EXIT, "Sair");
         break;
-    case 1: // Editar
+    case 1: // Editar (Etapa 3 — visual)
         menu.addItem(IDM_EDIT_PROGRAMACAO, L"Programação");
-        menu.addItem(IDM_EDIT_MAPA_COMERCIAL, "Mapa Comercial");
-        menu.addItem(IDM_EDIT_GRADES, "Grades Musicais");
+        menu.addItem(IDM_EDIT_BLOCOS_MUSICAIS, L"Blocos Musicais");
+        menu.addItem(IDM_EDIT_BLOCOS_COMERCIAL, L"Blocos Comerciais");
         menu.addSeparator();
-        menu.addItem(IDM_EDIT_RELOGIO_COMERCIAL, L"Relógio Comercial");
         menu.addItem(IDM_EDIT_RELOGIO_MUSICAL, L"Relógio Musical");
+        menu.addItem(IDM_EDIT_RELOGIO_COMERCIAL, L"Relógio Comercial");
+        break;
+    case 2: // Avançado (textual, antigo "Editar")
+        menu.addItem(IDM_ADV_PROGRAMACAO, L"Programação");
+        menu.addItem(IDM_ADV_MAPA_COMERCIAL, "Mapa Comercial");
+        menu.addItem(IDM_ADV_GRADES, "Grades Musicais");
+        menu.addSeparator();
+        menu.addItem(IDM_ADV_RELOGIO_COMERCIAL, L"Relógio Comercial");
+        menu.addItem(IDM_ADV_RELOGIO_MUSICAL, L"Relógio Musical");
         break;
     default:
         break;
@@ -160,7 +172,10 @@ void MainWindow::menuItemSelected(int menuItemID, int /*topLevelMenuIndex*/)
     if (menuItemID != IDM_FILE_CONFIG_MGR &&
         menuItemID != IDM_FILE_CHANGE_LOCATION &&
         menuItemID != IDM_FILE_LIST_IDS &&
-        menuItemID != IDM_EDIT_PROGRAMACAO) {
+        menuItemID != IDM_EDIT_PROGRAMACAO &&
+        menuItemID != IDM_EDIT_BLOCOS_MUSICAIS &&
+        menuItemID != IDM_EDIT_BLOCOS_COMERCIAL &&
+        menuItemID != IDM_ADV_PROGRAMACAO) {
         if (!m_locator.hasValidInstallation()) {
             openLocateDialog();
             refreshFromLocator();
@@ -191,23 +206,44 @@ void MainWindow::menuItemSelected(int menuItemID, int /*topLevelMenuIndex*/)
     case IDM_FILE_EXIT:
         requestCloseWithConfirmation();
         break;
+    // ---- Menu "Editar" (Etapa 3 — visual) ----
     case IDM_EDIT_PROGRAMACAO:
+        showTab(TAB_CONFIGURACAO);
+        break;
+    case IDM_EDIT_BLOCOS_MUSICAIS:
+        showTab(TAB_BLOCOS);
+        m_blocosTab.setMusical(true);
+        break;
+    case IDM_EDIT_BLOCOS_COMERCIAL:
+        showTab(TAB_BLOCOS);
+        m_blocosTab.setMusical(false);
+        break;
+    case IDM_EDIT_RELOGIO_MUSICAL:
+        showTab(TAB_RELOGIO);
+        m_relogioTab.openRelogio(readconf::ConfigScope::RelogioMusical);
+        break;
+    case IDM_EDIT_RELOGIO_COMERCIAL:
+        showTab(TAB_RELOGIO);
+        m_relogioTab.openRelogio(readconf::ConfigScope::RelogioComercial);
+        break;
+    // ---- Menu "Avançado" (textual, antigo "Editar") ----
+    case IDM_ADV_PROGRAMACAO:
         showTab(TAB_EDITOR);
         m_editorTab.openFile(EditorTab::FileKind::PlaylistIni);
         break;
-    case IDM_EDIT_MAPA_COMERCIAL:
+    case IDM_ADV_MAPA_COMERCIAL:
         showTab(TAB_EDITOR);
         m_editorTab.openFile(EditorTab::FileKind::MapasComercial);
         break;
-    case IDM_EDIT_GRADES:
+    case IDM_ADV_GRADES:
         showTab(TAB_EDITOR);
         m_editorTab.openFile(EditorTab::FileKind::GradesMusicais);
         break;
-    case IDM_EDIT_RELOGIO_COMERCIAL:
+    case IDM_ADV_RELOGIO_COMERCIAL:
         showTab(TAB_EDITOR);
         m_editorTab.openFile(EditorTab::FileKind::RelogioComercial);
         break;
-    case IDM_EDIT_RELOGIO_MUSICAL:
+    case IDM_ADV_RELOGIO_MUSICAL:
         showTab(TAB_EDITOR);
         m_editorTab.openFile(EditorTab::FileKind::RelogioMusical);
         break;
@@ -252,6 +288,10 @@ void MainWindow::refreshFromLocator()
     } else {
         m_editorTab.openFile(m_editorTab.currentKind());
     }
+
+    // O tab Relógio (editor visual/textual) também reabre seus arquivos com
+    // os caminhos da NOVA localização.
+    m_relogioTab.refreshFromController();
 
     // A barra de status global não mostra mais caminhos fixos — o caminho do
     // arquivo em edição fica no rodapé do próprio editor.
@@ -318,8 +358,15 @@ void MainWindow::saveOrDiscardCurrent(bool save)
             m_configTab.discardChanges();
         }
         break;
+    case TAB_RELOGIO:
+        if (save) {
+            m_relogioTab.saveCurrentFile();
+        } else {
+            m_relogioTab.reopenFromDisk();
+        }
+        break;
     default:
-        // Guia Códigos: somente leitura — nada a salvar/descartar.
+        // Guia Códigos e Blocos: somente leitura — nada a salvar/descartar.
         break;
     }
 }

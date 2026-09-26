@@ -1,10 +1,8 @@
 =======================================================================
 CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
-Data: 25/09/2026
-Status: Etapa 2 concluída (build limpo /W4, 165/165 testes, app abre);
-        rodada de correções de interface 25/09 (7 bugs — ver J.9);
-        rodada 2 de 25/09: acentos na interface (causa raiz), ARQUIVO
-        com .txt e ordem canônica das seções (ver J.10 / K.7);
+Data: 26/09/2026
+Status: Etapa 3 concluída (build limpo /W4, 268 testes: 183 do núcleo
+        (Etapa 2) + 85 do Relógio (Etapa 3), app abre); Etapa 2 concluída;
         testes manuais pendentes (docs\ROTEIRO_DE_TESTES.txt)
 =======================================================================
 
@@ -32,6 +30,19 @@ de programação do playlist.ini:
 
 Informações que ainda não existem na especificação continuam marcadas
 como A DEFINIR / NECESSITA DE ESPECIFICAÇÃO.
+
+Na Etapa 3 o programa ganha INTERFACES SIMPLIFICADAS com leitura do
+formato REAL dos arquivos de Relógio:
+   1. Menu "Editar" com os atalhos visuais; o antigo menu "Editar"
+      (textual) vira "Avançado";
+   2. Editor VISUAL dos Relógios Musical/Comercial (etapa 3) —
+      src/relogio (núcleo do modelo, teste sem UI) + src/app
+      (RelogioEditor/RelogioEditorTab): cada horário em uma linha com
+      chips de parâmetros, paleta "grudada no mouse", Início/Intervalo/
+      Avulso, Copiar/Colar de parâmetros entre relógios;
+   3. Tela provisória para "Blocos Musicais"/"Blocos Comerciais"
+      (o editor visual fica para etapa futura — NECESSITA DE EXEMPLO
+      REAL).
 
 -----------------------------------------------------------------------
 B. O QUE ESTÁ IMPLEMENTADO E O QUE NÃO ESTÁ
@@ -124,10 +135,13 @@ B.2. Implementado (Etapa 2)
       IDs" e status da guia usam "Lista de IDs", e o rodapé informa
       "Leitura concluída — carregado da pasta de instalação do
       Playlist." (25/09);
-  [x] ARQUIVO= padronizado em caixa alta até a "\" e capitalizado após
-      (Ex.: Musical Único -> ARQUIVO=GRADES\Grade.txt; Relógio
-      Comercial Único -> ARQUIVO=MAPAS\Relogio.txt; Semanais ->
-      GRADES\Grade%a.txt / MAPAS\Relogio%a.txt) (25/09);
+  [x] ARQUIVO= na GRAFIA CANÔNICA REAL (tabela do FormatRules.h):
+      Comercial -> MAPAS\Mapa.txt / MAPAS\Mapa%a.txt / MAPAS\Mapa%d.txt
+      / MAPAS\Mapa%d-%m-%Y.txt / MAPAS\%d-%m-%Y.TXT; Musical ->
+      grades\Grade.txt / grades\Grade%a.txt / GRADES\%d-%m-%Y.TXT
+      (Maker); Relógio Comercial -> Mapas\Relogio.txt /
+      Mapas\Relogio%a.txt; Relógio Musical -> GRADES\Relogio.txt /
+      GRADES\Relogio%a.txt (26/09 — ver J.11);
   [x] Nome canônico PLAYLIST.ini (maiúsculo): a localização tolera o
       arquivo em qualquer caixa no disco, mas ao criar/carregar o nome
       exibido e o alvo de criação passam a ser PLAYLIST.ini (25/09);
@@ -149,11 +163,50 @@ B.2. Implementado (Etapa 2)
   [x] Ícone do executável (ICON_BIG/ICON_SMALL via juce_add_gui_app) e
       ícone da janela (PNG embutido via juce_add_binary_data).
 
-B.3. NÃO implementado (fora de escopo)
+B.3. Implementado (Etapa 3)
+  [x] Menu "Editar" com as interfaces simplificadas e o antigo menu
+      textual renomeado para "Avançado" (26/09):
+        Arquivo   -> mesmo de sempre (Configuração de pastas / Lista de
+                     IDs / Trocar localização / Salvar / Descartar / Sair)
+        Editar    -> Programação | Blocos Musicais | Blocos Comerciais |
+                     Relógio Musical | Relógio Comercial   (VISUAL)
+        Avançado  -> Programação | Mapa Comercial | Grades Musicais |
+                     Relógio Comercial | Relógio Musical    (TEXTUAL)
+  [x] Guia "Relógio": editor VISUAL (e textual) dos arquivos de relógio,
+      com sub-aba por arquivo (Relogio.txt ou RelogioSeg..RelogioDom,
+      conforme Único/Semanal do playlist.ini):
+        - Cada horário (HH:MM) vira uma LINHA; os parâmetros
+          reconhecidos viram CHIPS coloridos; o resto da linha (conteúdo
+          preservado) fica em cinza;
+        - Paleta de parâmetros "GRUDADA no mouse": clicar num chip ARMA
+          o parâmetro; um chip fantasma segue o cursor e o clique num
+          horário o adiciona, mantendo-o armado para outros horários
+          (cancelar: clicar no mesmo chip/outro, botão direito ou ESC);
+        - Horários: "Início" adiciona 00:00; "Intervalo" adiciona o
+          horário do MEIO entre o selecionado e o seguinte; "Avulso..."
+          pede um HH:MM manualmente (decisões do usuário);
+        - Copiar/Colar: Ctrl+C/Ctrl+V (ou botões) copiam os parâmetros
+          do horário selecionado para uma área de transferência
+          COMPARTILHADA entre relógios/sub-abas;
+        - Clique numa linha seleciona; clique direito num chip o remove;
+        - Modo "Texto" na página: mesmos arquivos no bloco de notas,
+          sobre o MESMO documento em memória (alternância Visual|Texto
+          sem perda); barra de status com caminho/estado;
+  [x] Tela provisória "Blocos": Blocos Musicais/Comerciais têm atalho no
+      menu Editar, mas o editor visual é FUTURO (placeholder);
+  [x] Salvar/Descartar do Arquivo também valem para o Relógio; o
+      fechamento com alterações não salvas inclui as páginas do Relógio;
+  [x] Núcleo do Relógio SEM JUCE: src/relogio (RelogioDocument +
+      parametros) com round-trip exato e 85 testes; os testes do núcleo
+      (Etapa 1/2) continuam verdes (183/183 — ver correção em J.11).
+
+B.4. NÃO implementado (fora de escopo)
   [ ] Escrita de folders.xml (sempre somente leitura, por decisão);
   [ ] Backup completo da instalação;
   [ ] Suíte de testes GUI automatizada (validação manual/smoke);
-  [ ] Quaisquer regras de programação além das seções lidas.
+  [ ] Quaisquer regras de programação além das seções lidas;
+  [ ] Editor VISUAL de Grades/Mapas e dos Blocos (tela provisória)
+      — continua textual em "Avançado".
 
 -----------------------------------------------------------------------
 C. METODOLOGIA E DECISÕES TÉCNICAS
@@ -430,6 +483,20 @@ J.9. Rodada de correções de interface (25/09/2026):
     itens 9/10/11 novos) — os testes automatizados não foram executados
     nesta rodada por orientação do usuário.
 
+J.11. Etapa 3 (26/09/2026) — 268 testes verdes:
+  - Núcleo do Relógio: src/relogio (RelogioDocument + Parâmetro),
+    85 testes (PROGMASTER+RelogioTests.exe: 85/85 PASS). Round-trip
+    exato preservando CRLF/espaços/linhas cruas; parse de horário
+    HH:MM; apenas o meio da linha após o horário vira parâmetros.
+  - Correção no núcleo (Etapa 2): o gerador de ARQUIVO= (FormatRules)
+    gravava caixa alta indevidamente para Musical/Relógio Comercial,
+    contrariando a tabela canônica do FormatRules.h e os testes J.7.
+    Ajustado para Musical -> grades\Grade.txt / grades\Grade%a.txt,
+    Relógio Comercial -> Mapas\Relogio.txt / Mapas\Relogio%a.txt
+    (os demais permanecem como estavam). RulesTests voltou a 183/183.
+  - Build Release limpo (/W4 sem warning novo) para ProgMaster,
+    ProgMasterCoreTests e ProgMasterRelogioTests.
+
 -----------------------------------------------------------------------
 K. PROBLEMAS CONHECIDOS / LIMITAÇÕES
 -----------------------------------------------------------------------
@@ -463,10 +530,12 @@ K.7. Acentos na INTERFACE (causa raiz da rodada atual):
 
 -----------------------------------------------------------------------
 L. PRÓXIMA ETAPA (A DEFINIR — aguarda especificação do cliente)
------------------------------------------------------------------------
-Temas futuros: gravação/edição assistida por regras do Playlist,
-Grades/Mapas/Relógios como ferramentas dedicadas, backup completo,
-identidade visual final, testes GUI automatizados.
+------------------------------------------------------------------------
+Temas futuros: editor VISUAL de Grades/Mapas (hoje textual em
+"Avançado") e dos Blocos Musicais/Comerciais (hoje tela provisória)
+— ambos NECESSITAM DE EXEMPLO REAL; gravação/edição assistida por
+regras do Playlist, backup completo, identidade visual final, testes
+GUI automatizados.
 
 -----------------------------------------------------------------------
 O. REBRANDING (18/09/2026) — mantido

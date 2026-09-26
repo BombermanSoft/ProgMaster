@@ -401,8 +401,8 @@ GeneratedFormat generate(ConfigScope scope, FormatOption option)
     case FormatOption::Single:
         switch (scope) {
         case ConfigScope::Comercial:        out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa.txt"); break;
-        case ConfigScope::Musical:          out.lines.push_back(L"ARQUIVO=GRADES\\Grade.txt"); break;
-        case ConfigScope::RelogioComercial: out.lines.push_back(L"ARQUIVO=MAPAS\\Relogio.txt"); break;
+        case ConfigScope::Musical:          out.lines.push_back(L"ARQUIVO=grades\\Grade.txt"); break;
+        case ConfigScope::RelogioComercial: out.lines.push_back(L"ARQUIVO=Mapas\\Relogio.txt"); break;
         case ConfigScope::RelogioMusical:   out.lines.push_back(L"ARQUIVO=GRADES\\Relogio.txt"); break;
         case ConfigScope::Afiliadas:        out.lines.clear(); break;
         }
@@ -410,8 +410,8 @@ GeneratedFormat generate(ConfigScope scope, FormatOption option)
     case FormatOption::Weekly:
         switch (scope) {
         case ConfigScope::Comercial:        out.lines.push_back(L"ARQUIVO=MAPAS\\Mapa%a.txt"); break;
-        case ConfigScope::Musical:          out.lines.push_back(L"ARQUIVO=GRADES\\Grade%a.txt"); break;
-        case ConfigScope::RelogioComercial: out.lines.push_back(L"ARQUIVO=MAPAS\\Relogio%a.txt"); break;
+        case ConfigScope::Musical:          out.lines.push_back(L"ARQUIVO=grades\\Grade%a.txt"); break;
+        case ConfigScope::RelogioComercial: out.lines.push_back(L"ARQUIVO=Mapas\\Relogio%a.txt"); break;
         case ConfigScope::RelogioMusical:   out.lines.push_back(L"ARQUIVO=GRADES\\Relogio%a.txt"); break;
         case ConfigScope::Afiliadas:        out.lines.clear(); break;
         }

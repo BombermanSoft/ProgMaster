@@ -2,10 +2,12 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "app/BlocosTab.h"
 #include "app/CodesTab.h"
 #include "app/ConfiguratorTab.h"
 #include "app/EditorTab.h"
 #include "app/PlaylistConfigController.h"
+#include "app/RelogioEditorTab.h"
 #include "playlist/PlaylistInstallation.h"
 
 class PlaylistLocator;
@@ -25,8 +27,14 @@ namespace app {
 //   Salvar                 -> salva o arquivo em edição (ou a configuração)
 //   Descartar alterações   -> recarrega o arquivo em edição do disco
 //   Sair                   -> fecha (com aviso se houver não salvo)
-// Menu "Editar":
-//   Programação            -> playlist.ini (bloco de notas)
+// Menu "Editar" (Etapa 3 — interfaces simplificadas):
+//   Programação            -> guia Configuração (playlist.ini visual)
+//   Blocos Musicais        -> tela provisória (Avançado edita textualmente)
+//   Blocos Comerciais      -> tela provisória (Avançado edita textualmente)
+//   Relógio Musical        -> guia Relógio (editor VISUAL do relógio)
+//   Relógio Comercial      -> guia Relógio (editor VISUAL do relógio)
+// Menu "Avançado" (o antigo menu "Editar" textual da Etapa 2):
+//   Programação            -> guia Editor (playlist.ini no bloco de notas)
 //   Mapa Comercial         -> arquivo(s) dos mapas (único ou semanais)
 //   Grades Musicais        -> arquivo(s) das grades (único ou semanais)
 //   Relógio Comercial      -> arquivo(s) do relógio comercial
@@ -61,16 +69,25 @@ private:
         IDM_FILE_SAVE,
         IDM_FILE_DISCARD,
         IDM_FILE_EXIT,
+        // Menu "Editar" (Etapa 3 — visual).
         IDM_EDIT_PROGRAMACAO = 4101,
-        IDM_EDIT_MAPA_COMERCIAL,
-        IDM_EDIT_GRADES,
-        IDM_EDIT_RELOGIO_COMERCIAL,
+        IDM_EDIT_BLOCOS_MUSICAIS,
+        IDM_EDIT_BLOCOS_COMERCIAL,
         IDM_EDIT_RELOGIO_MUSICAL,
+        IDM_EDIT_RELOGIO_COMERCIAL,
+        // Menu "Avançado" (textual, antigo "Editar").
+        IDM_ADV_PROGRAMACAO = 4201,
+        IDM_ADV_MAPA_COMERCIAL,
+        IDM_ADV_GRADES,
+        IDM_ADV_RELOGIO_COMERCIAL,
+        IDM_ADV_RELOGIO_MUSICAL,
     };
 
     static constexpr int TAB_EDITOR = 0;
     static constexpr int TAB_CONFIGURACAO = 1;
     static constexpr int TAB_CODIGOS = 2;
+    static constexpr int TAB_RELOGIO = 3;
+    static constexpr int TAB_BLOCOS = 4;
 
     // Conteúdo da janela: guias + barra de status (não muda com o tamanho).
     class ContentPane final : public juce::Component {
@@ -99,6 +116,8 @@ private:
     EditorTab m_editorTab;
     CodesTab m_codesTab;
     ConfiguratorTab m_configTab;
+    RelogioEditorTab m_relogioTab;
+    BlocosTab m_blocosTab;
     juce::TabbedComponent m_tabs;
     juce::Label m_statusLabel;
     ContentPane m_contentPane;

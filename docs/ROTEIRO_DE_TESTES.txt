@@ -1,11 +1,12 @@
 =======================================================================
-ROTEIRO DE TESTES MANUAIS — ProgMaster (Fase 2, rodada 25/09/2026)
-Uso: validar as correções da rodada. O item 1 (reconhecimento do
-playlist.ini) é o MAIS IMPORTANTE — teste-o primeiro e com cuidado.
-Nesta rodada, também confira os itens NOVOS 12 a 17: texto explicativo
-no card de configuração, Códigos sem folders.xml, ARQUIVO= padronizado,
-editor limpo com ícones e PLAYLIST.ini, botões da Configuração e o novo
-comportamento do fechamento, e afiliadas sem espaçamento entre si.
+ROTEIRO DE TESTES MANUAIS — ProgMaster (Fase 3, rodada 26/09/2026)
+Uso: validar a Etapa 3 (interfaces simplificadas + editor visual de
+Relógios). O item 1 (reconhecimento do playlist.ini) continua sendo o
+MAIS IMPORTANTE — teste-o primeiro e com cuidado.
+Nesta rodada, confira os itens NOVOS 18 a 20: menus Editar/Avançado,
+tela provisória de Blocos e o editor VISUAL do Relógio (paleta
+"grudada", Início/Intervalo/Avulso, Copiar/Colar, Visual|Texto).
+O item 14 foi ATUALIZADO para a grafia canônica real dos ARQUIVO=.
 =======================================================================
 
 PREPARAÇÃO
@@ -55,22 +56,28 @@ PREPARAÇÃO
        é CRIADO nessa pasta.
 
 -----------------------------------------------------------------------
-2) MENU EDITAR (sem nomes de arquivo)
+2) MENUS EDITAR (visual) E AVANÇADO (textual)
 -----------------------------------------------------------------------
-2.1. Abrir o menu "Editar".
-     ESPERADO: as opções mostram apenas os nomes amigáveis:
-     Programação | Mapa Comercial | Grades Musicais |
-     Relógio Comercial | Relógio Musical (sem sufixos de arquivo
-     tipo "[playlist.ini]", "[Mapa.txt]" etc.).
+2.1. Abrir o menu "Editar" (Etapa 3).
+     ESPERADO: as opções são as interfaces SIMPLIFICADAS, sem nomes de
+     arquivo: Programação | Blocos Musicais | Blocos Comerciais |
+     Relógio Musical | Relógio Comercial.
+2.2. Abrir o menu "Avançado" (o antigo "Editar" textual).
+     ESPERADO: Programação | Mapa Comercial | Grades Musicais |
+     Relógio Comercial | Relógio Musical (abrem os arquivos no bloco de
+     notas textual, na guia Editor).
 
 -----------------------------------------------------------------------
 3) SUB-ABAS CONFORME A CONFIGURAÇÃO (único x semanal)
 -----------------------------------------------------------------------
 3.1. No playlist.ini, ter ARQUIVO=Mapas\Relogio%a.txt (formato
-     SEMANAL). Menus Editar ▸ Relógio Comercial e ▸ Relógio Musical.
+     SEMANAL). Menus Editar ▸ Relógio Comercial (visual) e Avançado ▸
+     Relógio Comercial (textual).
      ESPERADO: 7 sub-abas (RelogioSeg, RelogioTer, ..., RelogioDom),
      cada uma abrindo seu arquivo; abas de arquivos inexistentes abrem
-     vazias e podem ser criadas ao Salvar.
+     vazias e podem ser criadas ao Salvar. No Editar (visual) as
+     sub-abas ficam na guia "Relógio"; no Avançado (textual) na guia
+     "Editor".
 
 3.2. Mudar para ARQUIVO=Mapas\Relogio.txt (formato ÚNICO) e reabrir
      os mesmos itens.
@@ -244,17 +251,23 @@ PREPARAÇÃO
       arquivo folders.xml na interface.
 
 -----------------------------------------------------------------------
-14) PLAYLIST.INI ESCRITO EM CAIXA ALTA NO ARQUIVO=
+14) GRAFIA CANÔNICA REAL DOS ARQUIVO= (atualizado 26/09)
 -----------------------------------------------------------------------
 14.1. Na Configuração, gerar um formato em qualquer escopo e Salvar;
-      abrir o arquivo no Editor (Editar ▸ Programação) e conferir o
+      abrir o arquivo no Editor (Avançado ▸ Programação) e conferir o
       ARQUIVO=.
-      ESPERADO (padrão novo):
-        Musical Único    -> ARQUIVO=GRADES\Grade.txt
-        Relógio Comercial Único -> ARQUIVO=MAPAS\Relogio.txt
-        Semanal          -> ARQUIVO=GRADES\Grade%a.txt (e Relogio%a.txt)
-      A parte até a "\" fica em CAIXA ALTA; a parte depois da "\"
-      começa com maiúscula e o resto minúsculo.
+      ESPERADO (tabela canônica do FormatRules.h):
+        BLOCO COMERCIAL    -> ARQUIVO=MAPAS\Mapa.txt (e Mapa%a.txt,
+                              Mapa%d.txt, Mapa%d-%m-%Y.txt,
+                              %d-%m-%Y.TXT)
+        BLOCO MUSICAL      -> ARQUIVO=grades\Grade.txt (e Grade%a.txt;
+                              Maker -> GRADES\%d-%m-%Y.TXT)
+        RELÓGIO COMERCIAL  -> ARQUIVO=Mapas\Relogio.txt
+                              (e Mapas\Relogio%a.txt)
+        RELÓGIO MUSICAL    -> ARQUIVO=GRADES\Relogio.txt
+                              (e GRADES\Relogio%a.txt)
+      Essa é a grafia REAL da instalação de referência (a leitura
+      continua tolerante a qualquer caixa).
 
 -----------------------------------------------------------------------
 15) EDITOR LIMPO E PLAYLIST.INI EM MAIÚSCULAS
@@ -295,8 +308,61 @@ PREPARAÇÃO
       apenas entre os BLOCOS de seção, não entre afiliadas).
 
 -----------------------------------------------------------------------
-RESULTADO
+18) MENU EDITAR ▸ BLOÇOS (tela provisória)
 -----------------------------------------------------------------------
+18.1. Menu Editar ▸ Blocos Musicais e ▸ Blocos Comerciais.
+      ESPERADO: a guia "Blocos" abre com o título correspondente e o
+      texto "O editor visual dos blocos está previsto para uma próxima
+      etapa" + indicação de edição textual em "Avançado". Sem crash,
+      sem tela vazia.
+
+-----------------------------------------------------------------------
+19) EDITOR VISUAL DO RELÓGIO (guia "Relógio")
+-----------------------------------------------------------------------
+Preparação: abrir Editar ▸ Relógio Musical ou Comercial (o arquivo pode
+ser vazio no início).
+
+19.1. Horários. Clicar em "Início": uma linha 00:00 é adicionada no
+      relógio. Clicar em "Intervalo" com um horário selecionado: o
+      horário do MEIO entre ele e o seguinte é adicionado (ex.: 00:00 e
+      00:04 -> 00:02). "Avulso...": pede um HH:MM e adiciona; inválido
+      mostra mensagem e não altera.
+19.2. Chips de parâmetros. A paleta na parte de baixo mostra os botões
+      (FIXO), (DESCARTE), (LOCAL), (SAT), (LOCKED), (ID=), (DUR=) com
+      cores próprias. Clicar num chip ARMA o parâmetro — um chip
+      fantasma segue o mouse e a linha sob o cursor fica destacada.
+      Clicar numa linha adiciona o parâmetro e mantém armado (para
+      repetir em outros horários). Cancelar o armado: botão direito,
+      ESC, clicar no mesmo chip da paleta.
+19.3. Remover parâmetro: botão direito em cima de um chip da linha o
+      remove. Selecionar linha: clique esquerdo nela.
+19.4. Copiar/Colar: selecionar um horário -> Ctrl+C (ou "Copiar") ->
+      selecionar OUTRO horário (do MESMO relógio ou de outra aba) ->
+      Ctrl+V (ou "Colar"): os parâmetros são aplicados. O clipboard é
+      compartilhado entre as abas/sub-abas.
+19.5. Visual | Texto: na página, alternar entre "Visual" e "Texto" —
+      o texto de cada arquivo é o mesmo documento, nada se perde ao
+      alternar; no modo Texto dá para digitar por fora dos chips e ver
+      o conteúdo preservado.
+19.6. Salvar/Descartar: menu Arquivo ▸ Salvar grava o arquivo ativo;
+      Descartar recarrega do disco. Ao fechar com alterações, o diálogo
+      Salvar/Descartar/Cancelar também considera a guia Relógio.
+
+-----------------------------------------------------------------------
+20) RELÓGIO — MODO TEXTO E CONTEÚDO PRESERVADO
+-----------------------------------------------------------------------
+20.1. Abrir um relógio REAL (com horários e parâmetros, ex. o relógio
+      comercial da instalação) na guia Relógio, modo Visual.
+      ESPERADO: cada hora em uma linha, parâmetros conhecidos como chips
+      coloridos, e o restante da linha (conteúdo que o programa não
+      interpreta) em cinza logo após os chips. Nada é apagado.
+20.2. Alternar para "Texto": o conteúdo visto é EXATAMENTE o do arquivo
+      (CRLF etc.). Salvar não altera nada do que o editor visual não
+      tocou.
+
+----------------------------------------------------------------------
+RESULTADO
+----------------------------------------------------------------------
 Anotar para cada item: PASS (como esperado) ou FALHA (descrever o que
 aconteceu e o que era esperado). Relatar as falhas para correção na
 próxima rodada.

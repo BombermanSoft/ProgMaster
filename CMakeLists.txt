@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(ProgMaster
-    VERSION 0.2.0
-    DESCRIPTION "ProgMaster — complemento do sistema Playlist (Etapa 2)"
+    VERSION 0.3.0
+    DESCRIPTION "ProgMaster — complemento do sistema Playlist (Etapa 3)"
     LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -59,6 +59,8 @@ set(PROGMASTER_CORE
     src/readconf/PlaylistIniDocument.cpp
     src/readconf/PlaylistFileLocator.cpp
     src/readconf/ReadingConfiguration.cpp
+
+    src/relogio/RelogioDocument.cpp
 )
 
 # ----------------------------------------------------------------------------
@@ -67,7 +69,7 @@ set(PROGMASTER_CORE
 juce_add_gui_app(ProgMaster
     COMPANY_NAME "BombermanSoft"
     PRODUCT_NAME "ProgMaster"
-    VERSION 0.2.0
+    VERSION 0.3.0
     ICON_BIG   resources/ProgMasterIcon.png
     ICON_SMALL resources/ProgMasterIcon.png
     NEEDS_WEB_BROWSER  OFF
@@ -81,6 +83,9 @@ target_sources(ProgMaster PRIVATE
     src/app/MainWindow.cpp
     src/app/ConfiguratorTab.cpp
     src/app/EditorTab.cpp
+    src/app/RelogioEditorTab.cpp
+    src/app/RelogioEditor.cpp
+    src/app/BlocosTab.cpp
     src/app/CodesTab.cpp
     src/app/LocatePlaylistDialog.cpp
     src/app/PlaylistConfigController.cpp
@@ -123,4 +128,20 @@ target_include_directories(ProgMasterCoreTests PRIVATE
 )
 if(MSVC)
     target_compile_options(ProgMasterCoreTests PRIVATE /W4)
+endif()
+
+# ----------------------------------------------------------------------------
+# Testes do modelo do Relógio (também sem JUCE). Separados do ProgMasterCoreTests
+# porque cada arquivo de teste possui seu próprio main().
+# ----------------------------------------------------------------------------
+
+add_executable(ProgMasterRelogioTests
+    ${PROGMASTER_CORE}
+    src/relogio/tests/RelogioTests.cpp
+)
+target_include_directories(ProgMasterRelogioTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+    target_compile_options(ProgMasterRelogioTests PRIVATE /W4)
 endif()
