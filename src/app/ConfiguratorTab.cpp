@@ -95,13 +95,14 @@ public:
 
     readconf::ConfigScope scope() const { return m_scope; }
 
-    // Altura do cartão conforme o conteúdo (lista de arquivos do Semanal/AUTO
-    // tem até 7 itens; antes ficavam cortadas por um valor fixo).
+    // Altura do cartão conforme o conteúdo. O texto explicativo é resumido
+    // (listas de arquivos foram substituídas por contagem), então o cartão
+    // fica menor do que quando listava todos os arquivos.
     int preferredHeight() const
     {
         size_t lines = 0;
         if (m_snap.present && m_snap.option != readconf::FormatOption::Unknown) {
-            lines = 1 + m_snap.files.size();
+            lines = 2 + (m_snap.files.empty() ? 1 : 2);
         } else if (m_snap.present) {
             lines = 3; // mensagem "não reconhecida" pode ocupar 2-3 linhas
         } else {
@@ -195,31 +196,26 @@ private:
                  readconf::ConfigScope::RelogioComercial == m_scope)
                     ? L"pasta dos mapas"
                     : L"pasta das grades";
-            textOut = L"Arquivos esperados (" + folderHint + L"):\n";
-            if (m_snap.files.empty()) {
-                textOut += L"  (nenhum arquivo esperado para esta configuração)";
+            textOut = optionExplanation(m_snap.option, folderHint);
+            int found = 0;
+            for (const auto& f : m_snap.files) {
+                if (f.exists) {
+                    ++found;
+                }
+            }
+            // Em vez da lista longa de expectativas, mostra somente um resumo
+            // dos arquivos compatíveis encontrados no disco + exemplos.
+            if (found > 0) {
+                textOut += L"\nArquivos compatíveis encontrados: " +
+                           std::to_wstring(found);
+                if (m_snap.files.size() > 1) {
+                    textOut += L" de " + std::to_wstring(m_snap.files.size());
+                }
+                textOut += L".";
             } else {
-                // Limita a exibição para não deixar a tela enorme
-                // quando há muitos arquivos na pasta.
-                static const size_t maxFiles = 30;
-                const size_t shown =
-                    (m_snap.files.size() > maxFiles) ? maxFiles
-                                                     : m_snap.files.size();
-                for (size_t i = 0; i < shown; ++i) {
-                    const auto& f = m_snap.files[i];
-                    textOut += (f.exists ? L"  \u2713 " : L"  \u2717 ") +
-                               f.fileName;
-                    if (!f.exists) {
-                        textOut += L"  [não encontrado ainda]";
-                    }
-                    textOut += L"\n";
-                }
-                if (m_snap.files.size() > maxFiles) {
-                    textOut += L"  ... e mais " +
-                               std::to_wstring(
-                                   m_snap.files.size() - maxFiles) +
-                               L" arquivo(s) não exibido(s).\n";
-                }
+                textOut +=
+                    L"\nAinda não há arquivos compatíveis nesta " + folderHint +
+                    L" — eles são criados pelo gerador diário.";
             }
         } else if (m_snap.present) {
             textOut = L"Configuração atual não reconhecida: escolha um formato acima "
@@ -233,6 +229,39 @@ private:
             }
         }
         m_filesLabel.setText(jstr(textOut), juce::dontSendNotification);
+    }
+
+    // Frase curta que explica o que a opção faz (usada no lugar da lista de
+    // arquivos esperados, que ocupava espaço na tela).
+    static std::wstring optionExplanation(readconf::FormatOption option,
+                                          const std::wstring& folderHint)
+    {
+        switch (option) {
+        case readconf::FormatOption::Auto:
+            return L"Formato automático: o Playlist escolhe o arquivo de hoje "
+                   L"automaticamente a cada dia.";
+        case readconf::FormatOption::Single:
+            return L"Um único arquivo contém toda a programação. Fica na " +
+                   folderHint + L", com o nome fixo definido no ARQUIVO.";
+        case readconf::FormatOption::Weekly:
+            return L"Um arquivo por dia da semana (Seg a Dom), todos na " +
+                   folderHint + L", com o nome no formato definido no ARQUIVO.";
+        case readconf::FormatOption::CommercialDay:
+            return L"Um arquivo por dia, nomeado com o dia do mês (DD), na " +
+                   folderHint + L". A cada dia ele vira o arquivo corrente.";
+        case readconf::FormatOption::CommercialDate:
+            return L"Um arquivo por data (DD-MM-AAAA), na " + folderHint +
+                   L", preservando o histórico diário completo.";
+        case readconf::FormatOption::Planner:
+            return L"Planner: o arquivo é gerado a partir da data corrente "
+                   L"(DD-MM-AAAA), na " + folderHint + L".";
+        case readconf::FormatOption::Maker:
+            return L"Maker: o arquivo é gerado a partir da data corrente "
+                   L"(DD-MM-AAAA), na " + folderHint + L".";
+        case readconf::FormatOption::Unknown:
+            break;
+        }
+        return L"";
     }
 
     ConfiguratorTab& m_host;
@@ -389,7 +418,7 @@ public:
             }
         } else {
             m_info.setColour(juce::Label::textColourId, juce::Colours::orange);
-            m_info.setText(L"A seção [AFILIADAS] não existe no playlist.ini.", juce::dontSendNotification);
+            m_info.setText(L"A seção [AFILIADAS] não existe no PLAYLIST.ini.", juce::dontSendNotification);
             m_addSection.setVisible(true);
             m_addRow.setVisible(false);
         }
@@ -443,9 +472,9 @@ ConfiguratorTab::ConfiguratorTab(PlaylistConfigController& controller)
     m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
     addAndMakeVisible(m_dirtyLabel);
 
-m_textModeButton.setButtonText(L"\u270E  Visualizar como texto");
+    m_textModeButton.setButtonText(L"\u270E  Visualizar como texto");
     m_textModeButton.setTooltip(
-        L"Grava as alterações em disco e abre o playlist.ini no Bloco de "
+        L"Grava as alterações em disco e abre o PLAYLIST.ini no Bloco de "
         L"Notas do Windows para edição manual. Ao voltar a esta guia, o "
         L"arquivo é lido do disco novamente.");
     m_textModeButton.onClick = [this] { openInNotepad(); };
@@ -511,7 +540,7 @@ void ConfiguratorTab::openInNotepad()
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::WarningIcon,
             L"Não foi possível abrir o Bloco de Notas",
-            L"O playlist.ini ainda não existe no disco.");
+            L"O PLAYLIST.ini ainda não existe no disco.");
         m_reloadFromDiskOnVisible = false;
         return;
     }
@@ -599,7 +628,7 @@ void ConfiguratorTab::savePlaylistIni()
         updateDirtyLabel();
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::InfoIcon, L"Salvo",
-            L"playlist.ini foi gravado com sucesso.");
+            L"PLAYLIST.ini foi gravado com sucesso.");
     } else {
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::WarningIcon, L"Não foi possível salvar",

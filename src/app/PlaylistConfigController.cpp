@@ -35,7 +35,7 @@ std::string toUtf8(const std::wstring& s)
 PlaylistConfigController::PlaylistConfigController(std::filesystem::path playlistIniPath)
     : m_ini(std::move(playlistIniPath))
 {
-    m_ini.setDisplayName(L"playlist.ini");
+    m_ini.setDisplayName(L"PLAYLIST.ini");
 }
 
 void PlaylistConfigController::setPlaylistIniPath(std::filesystem::path playlistIniPath)
@@ -55,7 +55,7 @@ void PlaylistConfigController::load()
 
     if (!m_ini.exists()) {
         m_doc.setText(L"");
-        m_loadMessage = std::wstring(L"Não existe um playlist.ini na instalação ainda: ") +
+        m_loadMessage = std::wstring(L"Não existe um PLAYLIST.ini na instalação ainda: ") +
                         L"será criado ao salvar.";
         m_dirty = false;
         return;

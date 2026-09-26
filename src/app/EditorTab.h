@@ -109,9 +109,9 @@ private:
     bool m_dirty = false;
 
     juce::Label m_fileLabel;
-    juce::TextButton m_saveButton{ "Salvar" };
-    juce::TextButton m_undoButton{ "Desfazer" };
-    juce::TextButton m_redoButton{ "Refazer" };
+    juce::DrawableButton m_saveButton{ "Salvar", juce::DrawableButton::ImageFitted };
+    juce::DrawableButton m_undoButton{ "Desfazer", juce::DrawableButton::ImageFitted };
+    juce::DrawableButton m_redoButton{ "Refazer", juce::DrawableButton::ImageFitted };
     EditorTabTabs m_fileTabs;
     juce::Label m_statusLabel;
 };

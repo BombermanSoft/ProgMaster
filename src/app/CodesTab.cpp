@@ -32,15 +32,13 @@ CodesTab::CodesTab(PlaylistInstallation& installation)
 void CodesTab::reload()
 {
     const std::filesystem::path foldersPath = m_installation.foldersXmlPath();
-    const std::wstring sourcePath =
-        foldersPath.empty() ? L"(arquivo não encontrado)" : foldersPath.wstring();
 
     m_entries.clear();
     m_entries.shrink_to_fit();
     m_table.updateContent();
 
     if (foldersPath.empty()) {
-        m_statusLabel.setText(L"Arquivo folders.xml não encontrado na instalação.",
+        m_statusLabel.setText(L"Lista de IDs não encontrada na instalação.",
                               juce::dontSendNotification);
         m_summaryLabel.setText("Nenhum registro carregado.", juce::dontSendNotification);
         return;
@@ -85,7 +83,13 @@ void CodesTab::reload()
         summary += L"  |  DBFId repetidos: " + std::to_wstring(repeated);
     }
     m_summaryLabel.setText(jstr(summary), juce::dontSendNotification);
-    m_statusLabel.setText(jstr(sourcePath), juce::dontSendNotification);
+    if (m_entries.empty()) {
+        m_statusLabel.setText(L"Nenhum registro encontrado.", juce::dontSendNotification);
+    } else {
+        m_statusLabel.setText(L"Leitura concluída — carregado da pasta de "
+                              L"instalação do Playlist.",
+                              juce::dontSendNotification);
+    }
 }
 
 int CodesTab::getNumRows()

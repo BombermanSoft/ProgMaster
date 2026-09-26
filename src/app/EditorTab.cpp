@@ -15,6 +15,70 @@ juce::Font editorFont()
                                         juce::Font::getDefaultStyle(), 15.0f));
 }
 
+// Cria um DrawablePath preenchido a partir de um Path (para os ícones dos
+// botões do topo do editor).
+std::unique_ptr<juce::Drawable> makeIcon(const juce::Path& shape,
+                                         const juce::Colour& colour)
+{
+    auto* icon = new juce::DrawablePath();
+    icon->setPath(shape);
+    icon->setFill(colour);
+    return std::unique_ptr<juce::Drawable>(icon);
+}
+
+// Disquete (Salvar).
+juce::Path saveIconPath()
+{
+    juce::Path p;
+    p.startNewSubPath(2.0f, 2.0f);
+    p.lineTo(9.0f, 2.0f);
+    p.lineTo(13.0f, 6.0f);
+    p.lineTo(13.0f, 13.0f);
+    p.lineTo(2.0f, 13.0f);
+    p.closeSubPath();
+    p.startNewSubPath(4.0f, 2.0f);
+    p.lineTo(4.0f, 6.0f);
+    p.lineTo(9.0f, 6.0f);
+    p.lineTo(9.0f, 2.0f);
+    p.closeSubPath();
+    p.startNewSubPath(4.0f, 8.0f);
+    p.lineTo(11.0f, 8.0f);
+    p.lineTo(11.0f, 13.0f);
+    p.lineTo(4.0f, 13.0f);
+    p.closeSubPath();
+    return p;
+}
+
+// Seta curva para a esquerda (Desfazer).
+juce::Path undoIconPath()
+{
+    juce::Path p;
+    p.startNewSubPath(13.0f, 4.0f);
+    p.lineTo(7.0f, 4.0f);
+    p.lineTo(7.0f, 2.0f);
+    p.lineTo(2.5f, 6.0f);
+    p.lineTo(7.0f, 10.0f);
+    p.lineTo(7.0f, 8.0f);
+    p.lineTo(13.0f, 8.0f);
+    p.closeSubPath();
+    return p;
+}
+
+// Seta curva para a direita (Refazer), espelho da seta de desfazer.
+juce::Path redoIconPath()
+{
+    juce::Path p;
+    p.startNewSubPath(2.0f, 4.0f);
+    p.lineTo(8.0f, 4.0f);
+    p.lineTo(8.0f, 2.0f);
+    p.lineTo(12.5f, 6.0f);
+    p.lineTo(8.0f, 10.0f);
+    p.lineTo(8.0f, 8.0f);
+    p.lineTo(2.0f, 8.0f);
+    p.closeSubPath();
+    return p;
+}
+
 } // namespace
 
 // ============================================================================
@@ -73,7 +137,7 @@ public:
     std::wstring pathString() const
     {
         if (m_isIni) {
-            return L"playlist.ini (em memória — Salvar grava via Configuração)";
+            return L"PLAYLIST.ini (em memória — Salvar grava via Configuração)";
         }
         return m_service.path().wstring();
     }
@@ -126,7 +190,7 @@ namespace {
 std::wstring kindDisplayName(EditorTab::FileKind file)
 {
     switch (file) {
-    case EditorTab::FileKind::PlaylistIni:      return L"playlist.ini";
+    case EditorTab::FileKind::PlaylistIni:      return L"PLAYLIST.ini";
     case EditorTab::FileKind::MapasComercial:   return L"Mapa Comercial";
     case EditorTab::FileKind::GradesMusicais:   return L"Grades Musicais";
     case EditorTab::FileKind::RelogioComercial: return L"Relógio Comercial";
@@ -154,6 +218,12 @@ EditorTab::EditorTab(app::PlaylistConfigController& controller,
             page->editor().redo();
         }
     };
+    m_saveButton.setImages(makeIcon(saveIconPath(), juce::Colours::white).release());
+    m_undoButton.setImages(makeIcon(undoIconPath(), juce::Colours::white).release());
+    m_redoButton.setImages(makeIcon(redoIconPath(), juce::Colours::white).release());
+    m_saveButton.setTooltip(L"Salvar");
+    m_undoButton.setTooltip(L"Desfazer");
+    m_redoButton.setTooltip(L"Refazer");
     addAndMakeVisible(m_saveButton);
     addAndMakeVisible(m_undoButton);
     addAndMakeVisible(m_redoButton);
@@ -163,6 +233,7 @@ EditorTab::EditorTab(app::PlaylistConfigController& controller,
 
     m_fileLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
     addAndMakeVisible(m_fileLabel);
+    m_fileLabel.setFont(juce::Font(juce::FontOptions(12.0f)));
     m_statusLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
     addAndMakeVisible(m_statusLabel);
 }
@@ -221,7 +292,7 @@ std::vector<EditorTab::Spec> EditorTab::resolveSpecs(FileKind file) const
 
     switch (file) {
     case FileKind::PlaylistIni:
-        out.push_back({ {}, L"playlist.ini", /*isIni=*/true });
+        out.push_back({ {}, L"PLAYLIST.ini", /*isIni=*/true });
         break;
 
     case FileKind::MapasComercial: {
@@ -433,24 +504,30 @@ void EditorTab::paint(juce::Graphics& g)
 void EditorTab::resized()
 {
     const int margin = 6;
-    const int labelH = 20;
-    const int topH = 30;
+    const int topH = 26;
+    const int bottomH = 22;
     const auto area = getLocalBounds();
 
-    m_fileLabel.setBounds(area.getX() + margin, area.getY() + 2,
-                          area.getWidth() - 2 * margin, labelH);
+    const int y = area.getY() + 2;
+    m_saveButton.setBounds(area.getX() + margin, y, 30, topH);
+    m_undoButton.setBounds(m_saveButton.getRight() + 3, y, 30, topH);
+    m_redoButton.setBounds(m_undoButton.getRight() + 3, y, 30, topH);
 
-    const int y = area.getY() + labelH + 2;
-    m_saveButton.setBounds(area.getX() + margin, y, 70, topH);
-    m_undoButton.setBounds(m_saveButton.getRight() + 4, y, 84, topH);
-    m_redoButton.setBounds(m_undoButton.getRight() + 4, y, 84, topH);
-    m_statusLabel.setBounds(m_redoButton.getRight() + 12, y + 4,
-                            juce::jmax(0, area.getRight() - margin - m_redoButton.getRight() - 12),
-                            labelH);
-
-    m_fileTabs.setBounds(area.getX() + margin, y + topH + 4,
+    m_fileTabs.setBounds(area.getX() + margin, y + topH + 2,
                          area.getWidth() - 2 * margin,
-                         juce::jmax(0, area.getBottom() - (y + topH + 4) - margin));
+                         juce::jmax(0, area.getBottom() - (y + topH + 2) - bottomH - margin));
+
+    // Rodapé: caminho do arquivo em edição (a barra de status fixa da janela
+    // principal deixou de mostrar os caminhos do Playlist.exe/PLAYLIST.ini).
+    const int statusW = 260;
+    m_fileLabel.setBounds(area.getX() + margin,
+                          area.getBottom() - bottomH - margin,
+                          juce::jmax(0, area.getWidth() - 2 * margin - statusW),
+                          bottomH);
+    m_fileLabel.setJustificationType(juce::Justification::centredLeft);
+    m_statusLabel.setBounds(m_fileLabel.getRight() + 6, m_fileLabel.getY(),
+                            statusW - 6, bottomH);
+    m_statusLabel.setJustificationType(juce::Justification::centredRight);
 }
 
 void EditorTab::visibilityChanged()

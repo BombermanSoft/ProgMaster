@@ -85,8 +85,8 @@ private:
     bool m_reloadFromDiskOnVisible = false; // reler após editar no Bloco de Notas
     juce::Viewport m_visualArea;          // cartões
 
-    juce::TextButton m_saveButton{ "Salvar playlist.ini" };
-    juce::TextButton m_discardButton{ "Descartar alterações" };
+    juce::TextButton m_saveButton{ L"Salvar" };
+    juce::TextButton m_discardButton{ L"Descartar alterações" };
 
     juce::Component m_content;            // área rolável que segura os cartões
     std::vector<std::unique_ptr<juce::Component>> m_cards;

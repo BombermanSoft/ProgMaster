@@ -98,26 +98,27 @@ void MainWindow::requestCloseWithConfirmation()
         return;
     }
 
-    auto options = juce::MessageBoxOptions()
-                       .withIconType(juce::MessageBoxIconType::WarningIcon)
-                       .withTitle(L"Alterações não salvas")
-                       .withMessage(L"Existem alterações não salvas.\n"
-                                    L"O que deseja fazer?")
-                       .withButton("Salvar")
-                       .withButton("Descartar")
-                       .withButton("Cancelar")
-                       .withAssociatedComponent(&m_contentPane);
+    juce::AlertWindow window(L"Alterações não salvas",
+                             L"Existem alterações não salvas.\nO que deseja fazer?",
+                             juce::MessageBoxIconType::WarningIcon,
+                             &m_contentPane);
+    window.addButton(L"Salvar", 1);
+    window.addButton(L"Descartar alterações", 2);
+    window.addButton(L"Cancelar", 0);
+    window.enterModalState(false);
 
-    juce::AlertWindow::showAsync(options, [this](int result) {
-        if (result == 0) {
-            saveOrDiscardCurrent(true);
-            finishQuit();
-        } else if (result == 1) {
-            saveOrDiscardCurrent(false);
-            finishQuit();
-        }
-        // demais resultados (incl. cancelamento) -> nada.
-    });
+    switch (window.runModalLoop()) {
+    case 1: // Salvar alterações e fechar.
+        saveOrDiscardCurrent(true);
+        finishQuit();
+        break;
+    case 2: // Descartar alterações: fechar sem salvar.
+        finishQuit();
+        break;
+    case 0: // Cancelar (ou ESC/fechar a janela): cancela o fechamento.
+    default:
+        break;
+    }
 }
 
 juce::StringArray MainWindow::getMenuBarNames()
@@ -132,7 +133,7 @@ juce::PopupMenu MainWindow::getMenuForIndex(int topLevelMenuIndex,
     switch (topLevelMenuIndex) {
     case 0: // Arquivo
         menu.addItem(IDM_FILE_CONFIG_MGR, L"Configuração de pastas");
-        menu.addItem(IDM_FILE_LIST_IDS, "Lista de IDs (folders.xml)");
+        menu.addItem(IDM_FILE_LIST_IDS, "Lista de IDs");
         menu.addItem(IDM_FILE_CHANGE_LOCATION, L"Trocar localização...");
         menu.addSeparator();
         menu.addItem(IDM_FILE_SAVE, "Salvar");
@@ -252,17 +253,13 @@ void MainWindow::refreshFromLocator()
         m_editorTab.openFile(m_editorTab.currentKind());
     }
 
-    std::wstring status;
-    if (m_controller.path().empty()) {
-        status = L"playlist.ini: (não encontrado)   |   Playlist.exe: " + exe;
-    } else {
-        status = L"playlist.ini: " + m_controller.path().wstring() +
-                 L"   |   Playlist.exe: " + exe;
-    }
+    // A barra de status global não mostra mais caminhos fixos — o caminho do
+    // arquivo em edição fica no rodapé do próprio editor.
     if (!m_controller.lastLoadMessage().empty()) {
-        status += L"   |   " + m_controller.lastLoadMessage();
+        setStatus(m_controller.lastLoadMessage());
+    } else {
+        setStatus(std::wstring());
     }
-    setStatus(status);
 }
 
 void MainWindow::openLocateDialog()

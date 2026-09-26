@@ -58,6 +58,9 @@ std::filesystem::path PlaylistInstallation::playlistIniPath() const
     // Candidatas em ordem de prioridade: exeDir primeiro (valor documentado:
     // o ini fica na MESMA pasta do Playlist.exe), depois a raiz da instalação.
     // Ex.: C:\Playlist\pgm\Playlist.exe + playlist.ini na mesma pasta.
+    // O nome canônico de gravação é PLAYLIST.ini (caixa alta, como o usuário
+    // pediu); no Windows a busca é case-insensitive, então qualquer grafia
+    // existente é encontrada e o caminho usado passa a ser o canônico.
     std::vector<std::filesystem::path> candidates;
     const auto pushIfNew = [&candidates](const std::filesystem::path& p) {
         const auto it = std::find(candidates.begin(), candidates.end(), p);
@@ -65,6 +68,8 @@ std::filesystem::path PlaylistInstallation::playlistIniPath() const
             candidates.push_back(p);
         }
     };
+    pushIfNew(exeDir / L"PLAYLIST.ini");
+    pushIfNew(root / L"PLAYLIST.ini");
     pushIfNew(exeDir / L"playlist.ini");
     pushIfNew(exeDir / L"Playlist.ini");
     pushIfNew(root / L"playlist.ini");
@@ -74,6 +79,7 @@ std::filesystem::path PlaylistInstallation::playlistIniPath() const
     // C:\Playlist). Para nunca varrer o disco inteiro, paramos no pai do
     // exeDir (primeiro nível acima basta para as instalações reais).
     if (exeDir != exeDir.parent_path()) {
+        pushIfNew(exeDir.parent_path() / L"PLAYLIST.ini");
         pushIfNew(exeDir.parent_path() / L"playlist.ini");
     }
 
@@ -83,11 +89,14 @@ std::filesystem::path PlaylistInstallation::playlistIniPath() const
 
     const std::filesystem::path found = firstExisting(candidates);
     if (found.empty()) {
+        // Nenhum no disco: devolve o caminho-alvo canônico (PLAYLIST.ini na
+        // pasta do exe) para que a gravação crie o arquivo com esse nome.
         Log::info(L"playlistIniPath: nenhum playlist.ini encontrado "
-                  L"(exeDir=" + exeDir.wstring() + L")");
-    } else {
-        Log::info(L"playlistIniPath: encontrado [" + found.wstring() + L"]");
+                  L"(exeDir=" + exeDir.wstring() + L"); alvo=" +
+                  (exeDir / L"PLAYLIST.ini").wstring());
+        return exeDir / L"PLAYLIST.ini";
     }
+    Log::info(L"playlistIniPath: encontrado [" + found.wstring() + L"]");
     return found;
 }
 

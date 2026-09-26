@@ -115,8 +115,37 @@ B.2. Implementado (Etapa 2)
       fim; seções desconhecidas são preservadas depois;
   [x] Campos de afiliada com texto de dica cinza (placeholders)
       AFILIADA/ENDEREÇO/PORTA — digitação direta, sem apagar nada;
+  [x] Card de configuração SEM lista "Arquivos esperados": mostra texto
+      explicativo por opção (ex.: "Arquivos semanal: 7 arquivos de
+      grade, um por dia") + contagem de arquivos compatíveis
+      encontrados ("Arquivos compatíveis encontrados: 7." ou "Ainda não
+      há arquivos compatíveis") — interface mais limpa (25/09);
+  [x] Guia Códigos sem menção a folders.xml: menu "Arquivo ▸ Lista de
+      IDs" e status da guia usam "Lista de IDs", e o rodapé informa
+      "Leitura concluída — carregado da pasta de instalação do
+      Playlist." (25/09);
+  [x] ARQUIVO= padronizado em caixa alta até a "\" e capitalizado após
+      (Ex.: Musical Único -> ARQUIVO=GRADES\Grade.txt; Relógio
+      Comercial Único -> ARQUIVO=MAPAS\Relogio.txt; Semanais ->
+      GRADES\Grade%a.txt / MAPAS\Relogio%a.txt) (25/09);
+  [x] Nome canônico PLAYLIST.ini (maiúsculo): a localização tolera o
+      arquivo em qualquer caixa no disco, mas ao criar/carregar o nome
+      exibido e o alvo de criação passam a ser PLAYLIST.ini (25/09);
+  [x] Editor LIMPO (25/09): botões Salvar/Desfazer/Refazer viram
+      ÍCONES compactos com dica de ferramenta; o caminho do arquivo em
+      edição saiu de cima dos botões e foi para o RODAPÉ do editor
+      (a barra de status da janela deixou de mostrar os caminhos fixos
+      do Playlist.exe/playlist.ini);
   [x] Fechamento com confirmação Salvar/Descartar/Cancelar quando há
-      alterações não salvas;
+      alterações não salvas: comportamento determinístico por retorno
+      explícito (25/09) -> "Salvar" salva e fecha; "Descartar
+      alterações" fecha SEM salvar; "Cancelar" (ou ESC/X do diálogo)
+      somente cancela o fechamento;
+  [x] Botões do rodapé da Configuração: "Salvar" (antes "Salvar
+      playlist.ini") e "Descartar alterações" com ç/õ corretos (WIDE);
+  [x] Afiliadas consecutivas: linhas AFILIADA= uma abaixo da outra,
+      SEM linha em branco entre elas (o espaçamento em branco fica
+      apenas entre os blocos de seção);
   [x] Ícone do executável (ICON_BIG/ICON_SMALL via juce_add_gui_app) e
       ícone da janela (PNG embutido via juce_add_binary_data).
 

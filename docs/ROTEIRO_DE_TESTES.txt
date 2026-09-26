@@ -2,8 +2,10 @@
 ROTEIRO DE TESTES MANUAIS — ProgMaster (Fase 2, rodada 25/09/2026)
 Uso: validar as correções da rodada. O item 1 (reconhecimento do
 playlist.ini) é o MAIS IMPORTANTE — teste-o primeiro e com cuidado.
-Nesta rodada, também confira os itens NOVOS 9 (acentos na interface),
-10 (ARQUIVO terminando em .txt) e 11 (ordem canônica das seções).
+Nesta rodada, também confira os itens NOVOS 12 a 17: texto explicativo
+no card de configuração, Códigos sem folders.xml, ARQUIVO= padronizado,
+editor limpo com ícones e PLAYLIST.ini, botões da Configuração e o novo
+comportamento do fechamento, e afiliadas sem espaçamento entre si.
 =======================================================================
 
 PREPARAÇÃO
@@ -218,6 +220,79 @@ PREPARAÇÃO
       e Salvar.
       ESPERADO: [AFILIADAS] é criada DEPOIS de [RELOGIO COMERCIAL]
       (última seção), não antes.
+
+-----------------------------------------------------------------------
+12) CARD DE CONFIGURAÇÃO — TEXTO EXPLICATIVO (sem "Arquivos esperados")
+-----------------------------------------------------------------------
+12.1. Guia Configuração ▸ cartões de escopo (ex.: [BLOCO COMERCIAL]):
+      o campo "Arquivos esperados" (lista espelhada) foi substituído por
+      um TEXTO EXPLICATIVO curto por opção + a contagem de arquivos
+      compatíveis encontrados.
+      ESPERADO: por exemplo, com "Semanal" escolhido aparece ex.
+      "Arquivos compatíveis encontrados: 7." (ou "Ainda não há
+      arquivos compatíveis" se a pasta estiver vazia). Sem listagem
+      longa de arquivos por extenso no cartão.
+
+-----------------------------------------------------------------------
+13) CÓDIGOS SEM folders.xml
+-----------------------------------------------------------------------
+13.1. Guia Códigos: o menu "Arquivo ▸ Lista de IDs" e o próprio
+      rodapé NÃO mencionam mais "folders.xml".
+      ESPERADO: status "Lista de IDs não encontrada na instalação."
+      (quando ausente) e "Leitura concluída — carregado da pasta de
+      instalação do Playlist." (quando presente). Nenhuma menção ao
+      arquivo folders.xml na interface.
+
+-----------------------------------------------------------------------
+14) PLAYLIST.INI ESCRITO EM CAIXA ALTA NO ARQUIVO=
+-----------------------------------------------------------------------
+14.1. Na Configuração, gerar um formato em qualquer escopo e Salvar;
+      abrir o arquivo no Editor (Editar ▸ Programação) e conferir o
+      ARQUIVO=.
+      ESPERADO (padrão novo):
+        Musical Único    -> ARQUIVO=GRADES\Grade.txt
+        Relógio Comercial Único -> ARQUIVO=MAPAS\Relogio.txt
+        Semanal          -> ARQUIVO=GRADES\Grade%a.txt (e Relogio%a.txt)
+      A parte até a "\" fica em CAIXA ALTA; a parte depois da "\"
+      começa com maiúscula e o resto minúsculo.
+
+-----------------------------------------------------------------------
+15) EDITOR LIMPO E PLAYLIST.INI EM MAIÚSCULAS
+-----------------------------------------------------------------------
+15.1. Guia Editor: os botões Salvar/Desfazer/Refazer agora são ÍCONES
+      compactos no topo (sem os rótulos "Salvar"/"Desfazer"/"Refazer"
+      escritos). Passar o mouse mostra a dica de cada um.
+15.2. O caminho do arquivo em edição NÃO fica mais sobre os botões:
+      ele aparece no RODAPÉ do editor (parte de baixo). A barra de
+      status da janela deixou de exibir os caminhos fixos do
+      Playlist.exe/playlist.ini.
+15.3. Abrir Editar ▸ Programação: o nome da sub-aba e o rodapé
+      mostram "PLAYLIST.ini" (maiúsculo), inclusive quando o arquivo no
+      disco se chama "playlist.ini" — e ao salvar pela primeira vez
+      numa pasta sem o arquivo, ele é criado como "PLAYLIST.ini".
+
+-----------------------------------------------------------------------
+16) BOTÕES DA CONFIGURAÇÃO E FECHAMENTO
+-----------------------------------------------------------------------
+16.1. Guia Configuração ▸ rodapé: o botão esquerdo mostra "Salvar"
+      (e não "Salvar playlist.ini") e o direito "Descartar alterações"
+      com o ç/õ corretos.
+16.2. Com alterações não salvas, fechar a janela:
+      ESPERADO novo comportamento do diálogo:
+       - "Salvar"      -> salva as alterações e fecha;
+       - "Descartar alterações" -> fecha SEM salvar;
+       - "Cancelar"    -> apenas cancela o fechamento (a janela
+                          permanece aberta, nada é salvo);
+       - Fechar com ESC ou X no diálogo = mesmo que Cancelar.
+                                                                      
+-----------------------------------------------------------------------
+17) AFILIADAS SEM ESPAÇAMENTO ENTRE SI
+-----------------------------------------------------------------------
+17.1. Na guia Configuração ▸ [AFILIADAS], adicionar várias afiliadas e
+      Salvar. Abrir no Editor e conferir:
+      ESPERADO: as linhas AFILIADA= ficam uma embaixo da outra, SEM
+      linhas em branco entre elas (o espaçamento em branco existe
+      apenas entre os BLOCOS de seção, não entre afiliadas).
 
 -----------------------------------------------------------------------
 RESULTADO
