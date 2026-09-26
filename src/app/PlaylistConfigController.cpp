@@ -170,12 +170,17 @@ void PlaylistConfigController::removeAfiliada(size_t position)
 }
 
 bool PlaylistConfigController::flushPendingToDisk(std::wstring& userMessage,
-                                                  std::string& technicalError)
+                                                    std::string& technicalError)
 {
     userMessage.clear();
     technicalError.clear();
 
-    // Grava SEM validação: é apenas um espelho para o Bloco de Notas editar.
+    // Remove [AFILIADAS] se estiver vazia antes de espelhar para o
+    // Bloco de Notas.
+    m_doc.removeEmptyAfiliadasSection();
+
+    // Grava SEM validação: é apenas um espelho para o Bloco de Notas
+    // editar.
     // A validação continua acontecendo apenas no "Salvar playlist.ini".
     const std::wstring text = m_doc.text();
     if (!m_ini.save(text, userMessage, technicalError)) {
@@ -199,10 +204,13 @@ void PlaylistConfigController::setTextFromEditor(const std::wstring& text)
 }
 
 bool PlaylistConfigController::save(std::wstring& userMessage,
-                                    std::string& technicalError)
+                                     std::string& technicalError)
 {
     userMessage.clear();
     technicalError.clear();
+
+    // Remove [AFILIADAS] se estiver vazia.
+    m_doc.removeEmptyAfiliadasSection();
 
     // 1) Validação (nada é gravado com problema).
     const auto validation = readconf::validateForSave(m_doc);

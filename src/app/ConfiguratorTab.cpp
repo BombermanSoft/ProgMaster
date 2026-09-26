@@ -199,12 +199,26 @@ private:
             if (m_snap.files.empty()) {
                 textOut += L"  (nenhum arquivo esperado para esta configuração)";
             } else {
-                for (const auto& f : m_snap.files) {
-                    textOut += (f.exists ? L"  \u2713 " : L"  \u2717 ") + f.fileName;
+                // Limita a exibição para não deixar a tela enorme
+                // quando há muitos arquivos na pasta.
+                static const size_t maxFiles = 30;
+                const size_t shown =
+                    (m_snap.files.size() > maxFiles) ? maxFiles
+                                                     : m_snap.files.size();
+                for (size_t i = 0; i < shown; ++i) {
+                    const auto& f = m_snap.files[i];
+                    textOut += (f.exists ? L"  \u2713 " : L"  \u2717 ") +
+                               f.fileName;
                     if (!f.exists) {
                         textOut += L"  [não encontrado ainda]";
                     }
                     textOut += L"\n";
+                }
+                if (m_snap.files.size() > maxFiles) {
+                    textOut += L"  ... e mais " +
+                               std::to_wstring(
+                                   m_snap.files.size() - maxFiles) +
+                               L" arquivo(s) não exibido(s).\n";
                 }
             }
         } else if (m_snap.present) {

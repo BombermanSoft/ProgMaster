@@ -115,8 +115,9 @@ public:
         int lineIndex = -1;      // índice da linha dentro do documento
     };
 
-    // Lista as afiliadas na ordem do arquivo (ativas e desativadas). A chave
-    // de cada linha é o NOME configurável da afiliada.
+    // Lista as afiliadas na ordem do arquivo (ativas e desativadas).
+    // Apenas a seção [AFILIADAS] é reconhecida; quaisquer outras
+    // seções desconhecidas (ex.: [RDS]) são IGNORADAS.
     std::vector<Afiliada> afiliadas() const;
 
     // Adiciona uma afiliada nova (ou cria a seção, se faltar).
@@ -141,6 +142,10 @@ public:
 
     // Cria a seção [AFILIADAS] (sem entradas) caso ainda não exista.
     bool ensureAfiliadasSection();
+
+    // Remove a seção [AFILIADAS] se não houver nenhuma afiliada
+    // (ativa ou desativada) — usada antes de salvar.
+    void removeEmptyAfiliadasSection();
 
 private:
     // Operações internas sobre a lista de linhas.

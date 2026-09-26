@@ -33,6 +33,8 @@ public:
         m_editor.setScrollbarsShown(true);
         m_editor.setCaretVisible(true);
         m_editor.setPopupMenuEnabled(true);
+        m_editor.setReturnKeyStartsNewLine(true);
+        m_editor.setTabKeyUsedAsCharacter(true);
         m_editor.setFont(editorFont());
         m_editor.onTextChange = [this] { m_host.onPageTextChanged(*this); };
         m_editor.setTooltip(m_isIni ? juce::String()
@@ -375,7 +377,10 @@ std::wstring EditorTab::currentFileName() const
 void EditorTab::onPageTextChanged(FilePage& page)
 {
     page.markTextChangedByUser();
-    if (&page == currentPage()) {
+    // Mantém o controlador sincronizado apenas para o playlist.ini
+    // (o documento é reinterpretado ao voltar para a interface).
+    if (&page == currentPage() && page.isIni()) {
+        m_controller.setTextFromEditor(page.text());
         updateButtons();
         updateStatus();
     }
@@ -459,14 +464,22 @@ void EditorTab::visibilityChanged()
     }
 
     if (isVisible()) {
-        // Voltou para a aba: puxa o estado mais recente do controlador.
-        page->setText(m_controller.currentText());
+        // Voltou para a aba: se o usuário editou (página suja),
+        // sincroniza com o controlador; senão, puxa o estado
+        // mais recente do controlador (evita perder edições).
+        if (page->isDirty()) {
+            m_controller.setTextFromEditor(page->text());
+        } else {
+            page->setText(m_controller.currentText());
+        }
     } else {
-        // Sendo ocultada: devolve o texto ao controlador (sincronização).
+        // Sendo ocultada: devolve o texto ao controlador e marca
+        // a página como sincronizada.
         const std::wstring text = page->text();
         if (text != m_controller.currentText()) {
             m_controller.setTextFromEditor(text);
         }
+        page->setDirty(false);
     }
     updateStatus();
 }

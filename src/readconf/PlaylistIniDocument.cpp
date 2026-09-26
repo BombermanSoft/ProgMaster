@@ -296,7 +296,33 @@ std::wstring PlaylistIniDocument::text() const
                 }
                 return a.rank < b.rank;
             });
+        bool firstBlock = true;
         for (const SectionBlock& b : blocks) {
+            if (!firstBlock) {
+                // Garante pelo menos uma linha em branco entre seções.
+                auto lineBeforeLastEolIsBlank = [&]() -> bool {
+                    if (out.empty()) return true;
+                    const size_t p = out.rfind(m_eol);
+                    if (p == std::wstring::npos) return false;
+                    const size_t prevP = out.rfind(m_eol, p - 1);
+                    if (prevP == std::wstring::npos) {
+                        for (size_t i = 0; i < p; ++i) {
+                            if (out[i] != L' ' && out[i] != L'\t' &&
+                                out[i] != L'\r') return false;
+                        }
+                        return true;
+                    }
+                    for (size_t i = prevP + m_eol.size(); i < p; ++i) {
+                        if (out[i] != L' ' && out[i] != L'\t' &&
+                            out[i] != L'\r') return false;
+                    }
+                    return true;
+                };
+                if (!lineBeforeLastEolIsBlank()) {
+                    out += m_eol;
+                }
+            }
+            firstBlock = false;
             appendRange(b.begin, b.end);
         }
     }
@@ -533,11 +559,26 @@ bool PlaylistIniDocument::removeSection(ConfigScope scope)
     return true;
 }
 
+static bool isSectionRecognized(const std::wstring& normalizedName)
+{
+    // Retorna true apenas para as 5 seções conhecidas do
+    // sistema (canonicalSectionRank 1..5). Quaisquer outras
+    // tags (ex.: [RDS]) são ignoradas para não serem tratadas
+    // como afiliadas ou qualquer outro escopo.
+    return canonicalSectionRank(normalizedName) >= 1;
+}
+
 std::vector<PlaylistIniDocument::Afiliada> PlaylistIniDocument::afiliadas() const
 {
     std::vector<Afiliada> result;
     const int sec = sectionIndex(ConfigScope::Afiliadas);
     if (sec < 0) {
+        return result;
+    }
+    // Segurança extra: a seção encontrada deve ser exatamente
+    // [AFILIADAS]; ignora qualquer outra tag que tenha o mesmo
+    // nome normalizado por engano.
+    if (!isSectionRecognized(m_lines[static_cast<size_t>(sec)].sectionName)) {
         return result;
     }
     const int end = sectionEnd(sec);
@@ -573,6 +614,24 @@ bool PlaylistIniDocument::hasAfiliadasSection() const
 bool PlaylistIniDocument::ensureAfiliadasSection()
 {
     return ensureSection(ConfigScope::Afiliadas) >= 0;
+}
+
+void PlaylistIniDocument::removeEmptyAfiliadasSection()
+{
+    const int sec = sectionIndex(ConfigScope::Afiliadas);
+    if (sec < 0) {
+        return;
+    }
+    int keyCount = 0;
+    const int end = sectionEnd(sec);
+    for (int i = sec + 1; i < end; ++i) {
+        if (m_lines[static_cast<size_t>(i)].kind == IniLineKind::Key) {
+            ++keyCount;
+        }
+    }
+    if (keyCount == 0) {
+        removeSection(ConfigScope::Afiliadas);
+    }
 }
 
 void PlaylistIniDocument::addAfiliada(const std::wstring& name,
