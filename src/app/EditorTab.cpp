@@ -379,8 +379,10 @@ void EditorTab::onPageTextChanged(FilePage& page)
     page.markTextChangedByUser();
     // Mantém o controlador sincronizado apenas para o playlist.ini
     // (o documento é reinterpretado ao voltar para a interface).
-    if (&page == currentPage() && page.isIni()) {
-        m_controller.setTextFromEditor(page.text());
+    if (&page == currentPage()) {
+        if (page.isIni()) {
+            m_controller.setTextFromEditor(page.text());
+        }
         updateButtons();
         updateStatus();
     }
