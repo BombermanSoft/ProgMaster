@@ -199,8 +199,13 @@ std::wstring PlaylistConfigController::currentText() const
 
 void PlaylistConfigController::setTextFromEditor(const std::wstring& text)
 {
+    const bool changed = (text != m_doc.text());
     m_doc.setText(text);
-    setDirty();
+    // Só marca sujo se o conteúdo realmente mudou (senão um Ctrl+Z
+    // de volta ao original deixaria o status errado).
+    if (changed) {
+        setDirty();
+    }
 }
 
 bool PlaylistConfigController::save(std::wstring& userMessage,

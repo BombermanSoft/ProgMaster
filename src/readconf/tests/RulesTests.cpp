@@ -396,9 +396,11 @@ void testDocumentTolerances()
         L"[REL\u00d3GIO COMERCIAL]\nFORMATO=TXT1\n"
         L"ARQUIVO=\"Mapas\\Relogio.txt\"\n");
 
-    // O round-trip preserva o texto original (inclusive as aspas).
+    // O round-trip preserva o texto original (inclusive as aspas), mas o
+    // espaçamento garante uma linha em branco entre as seções.
     CHECK_EQ(doc.text(),
              L"[BLOCO COMERCIAL]\nFORMATO=AUTO\n"
+             L"\n"
              L"[REL\u00d3GIO COMERCIAL]\nFORMATO=TXT1\n"
              L"ARQUIVO=\"Mapas\\Relogio.txt\"\n");
 
