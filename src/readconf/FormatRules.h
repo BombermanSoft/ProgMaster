@@ -83,8 +83,9 @@ enum class FormatOption {
 // Opções de formato oferecidas para o escopo (ordem de exibição).
 std::vector<FormatOption> optionsForFormat(ConfigScope scope);
 
-// Rótulo amigável da opção (texto no ComboBox).
-std::wstring displayName(FormatOption option);
+// Rótulo amigável da opção (texto no ComboBox). O nome do formato "único"
+// depende do escopo (Mapa Único, Grade Única ou Relógio Único).
+std::wstring displayName(ConfigScope scope, FormatOption option);
 
 // True se a opção é aplicável ao escopo.
 bool optionAppliesTo(ConfigScope scope, FormatOption option);

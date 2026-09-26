@@ -61,19 +61,23 @@ public:
     {
         m_snap = snap;
 
+        // O status "Configurado" é redundante; só mostramos avisos quando há
+        // um problema (formato não reconhecido ou seção ausente).
         if (snap.present) {
-            m_status.setColour(juce::Label::textColourId,
-                               snap.option == readconf::FormatOption::Unknown
-                                   ? juce::Colours::orange
-                                   : juce::Colours::lime);
-            m_status.setText(snap.option == readconf::FormatOption::Unknown
-? L"Configuração presente (não reconhecida —"
-                                    L" preservada no salvamento)"
-                                  : L"Configurado",
-                             juce::dontSendNotification);
+            if (snap.option == readconf::FormatOption::Unknown) {
+                m_status.setColour(juce::Label::textColourId, juce::Colours::orange);
+                m_status.setText(L"Configuração presente (não reconhecida —"
+                                 L" preservada no salvamento)",
+                                 juce::dontSendNotification);
+                m_status.setVisible(true);
+            } else {
+                m_status.setText("", juce::dontSendNotification);
+                m_status.setVisible(false);
+            }
         } else {
             m_status.setColour(juce::Label::textColourId, juce::Colours::tomato);
             m_status.setText(L"Não configurado (seção ausente)", juce::dontSendNotification);
+            m_status.setVisible(true);
         }
 
         buildCombo();
@@ -109,6 +113,10 @@ public:
             lines = 3; // mensagem "A execução usa..." + eventual linha ARQUIVO
         }
         const int filesTop = m_showToken ? 128 : 108;
+        if (!m_status.isVisible()) {
+            // Sem o aviso superior, o conteúdo sobe 28px (linha do status + margem).
+            return juce::jmax(162, filesTop - 28 + static_cast<int>(lines) * 14 + 6);
+        }
         const int filesH = juce::jmax(24, static_cast<int>(lines) * 14 + 6);
         return juce::jmax(190, filesTop + filesH + 6);
     }
@@ -116,38 +124,44 @@ public:
     void resized() override
     {
         const int margin = 8;
-        const int w = getWidth();
         const int statusH = 22;
         const int rowH = 26;
+        const int top = m_status.isVisible() ? 18 + statusH + 6 : 6;
 
-        m_status.setBounds(margin, 18, w - 2 * margin, statusH);
+        if (m_status.isVisible()) {
+            m_status.setBounds(margin, 18, getWidth() - 2 * margin, statusH);
+        }
 
-        m_formatoLabel.setBounds(margin, 18 + statusH + 6, w - 2 * margin, rowH);
+        m_formatoLabel.setBounds(margin, top, getWidth() - 2 * margin, rowH);
 
         if (m_snap.present) {
             m_formato.setVisible(true);
             m_addButton.setVisible(false);
             m_removeButton.setVisible(true);
-            m_formato.setBounds(margin, 18 + statusH + 6 + rowH,
-                                w - 2 * margin - 124, 24);
-            m_removeButton.setBounds(w - margin - 116, 18 + statusH + 6 + rowH,
+            m_formato.setBounds(margin, top + rowH,
+                                getWidth() - 2 * margin - 124, 24);
+            m_removeButton.setBounds(getWidth() - margin - 116, top + rowH,
                                      116, 24);
         } else {
             m_formato.setVisible(false);
             m_addButton.setVisible(true);
             m_removeButton.setVisible(false);
-            m_addButton.setBounds(90, 18 + statusH + 12, 170, 24);
+            m_addButton.setBounds(90, top + 6, 170, 24);
         }
 
         if (m_showToken) {
             m_tokenLabel.setVisible(true);
-            m_tokenLabel.setBounds(margin, 108, w - 2 * margin, 18);
+            m_tokenLabel.setBounds(margin, m_status.isVisible() ? 108
+                                                               : 108 - 28,
+                                   getWidth() - 2 * margin, 18);
         } else {
             m_tokenLabel.setVisible(false);
         }
 
-        m_filesLabel.setBounds(margin, m_showToken ? 128 : 108,
-                               w - 2 * margin, getHeight() - (m_showToken ? 134 : 114));
+        const int filesY = m_showToken ? (m_status.isVisible() ? 128 : 100)
+                                       : (m_status.isVisible() ? 108 : 80);
+        m_filesLabel.setBounds(margin, filesY, getWidth() - 2 * margin,
+                               getHeight() - (filesY + 6));
     }
 
     // ------------------------------------------------------------------
@@ -175,7 +189,7 @@ private:
         const auto options = readconf::optionsForFormat(m_scope);
         for (readconf::FormatOption opt : options) {
             const int id = optionId(opt);
-            m_formato.addItem(jstr(readconf::displayName(opt)), id);
+            m_formato.addItem(jstr(readconf::displayName(m_scope, opt)), id);
             m_optIds.emplace_back(id, opt);
         }
 
@@ -401,12 +415,7 @@ public:
 
         m_rows.clear();
         if (hasSection) {
-            m_info.setColour(juce::Label::textColourId, juce::Colours::lime);
-            m_info.setText(jstr(L"Seção [AFILIADAS] presente — " +
-                                   std::to_wstring(list.size()) +
-                                   (list.size() == 1 ? L" registro."
-                                                     : L" registros.")),
-                           juce::dontSendNotification);
+            m_info.setVisible(false);
             m_addSection.setVisible(false);
             m_addRow.setVisible(true);
             for (size_t i = 0; i < list.size(); ++i) {
@@ -427,26 +436,32 @@ public:
 
     int preferredHeight() const
     {
-        // info (18+20) -> botão (40+24) -> linhas a partir de y=68.
-        return 68 + static_cast<int>(m_rows.size()) * (28 + 4);
+        // Sem a info (seção presente), o botão sobe para o topo (18+24) e as
+        // linhas começam em y=46. Com a info ausente: info(18+20)+botão(40+24)
+        // e linhas a partir de y=68.
+        const int top = m_info.isVisible() ? 68 : 46;
+        return top + static_cast<int>(m_rows.size()) * (28 + 4);
     }
 
     void resized() override
     {
         const int margin = 8;
         const int rowH = 28;
-        m_info.setBounds(margin, 18, getWidth() - 2 * margin, 20);
-        m_addSection.setBounds(60, 40, 180, 24);
-        m_addRow.setBounds(margin, 40, 180, 24);
+        if (m_info.isVisible()) {
+            m_info.setBounds(margin, 18, getWidth() - 2 * margin, 20);
+        }
+        m_addSection.setBounds(60, m_info.isVisible() ? 40 : 22, 180, 24);
+        m_addRow.setBounds(margin, m_info.isVisible() ? 40 : 22, 180, 24);
 
-        int y = 68;
+        int y = m_info.isVisible() ? 68 : 46;
         for (auto& row : m_rows) {
             row->setBounds(margin, y, getWidth() - 2 * margin, rowH);
             y += rowH + 4;
         }
         // A altura deve caber todas as linhas DENTRO do cartão (antes a última
         // linha/seus botões ficavam para fora da borda inferior do grupo).
-        setSize(getWidth(), 68 + static_cast<int>(m_rows.size()) * (rowH + 4));
+        setSize(getWidth(), (m_info.isVisible() ? 68 : 46) +
+                                static_cast<int>(m_rows.size()) * (rowH + 4));
     }
 
     // Fonte atual das linhas (para onRowChanged sincronizar com o controlador).
@@ -724,9 +739,10 @@ void ConfiguratorTab::updateDirtyLabel()
     if (m_controller.isDirty()) {
         m_dirtyLabel.setText(L"alterações não salvas", juce::dontSendNotification);
         m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
+        m_dirtyLabel.setVisible(true);
     } else {
-        m_dirtyLabel.setText("documento em dia", juce::dontSendNotification);
-        m_dirtyLabel.setColour(juce::Label::textColourId, juce::Colours::lime);
+        m_dirtyLabel.setText("", juce::dontSendNotification);
+        m_dirtyLabel.setVisible(false);
     }
 }
 

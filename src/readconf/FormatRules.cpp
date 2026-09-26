@@ -271,14 +271,24 @@ std::vector<FormatOption> optionsForFormat(ConfigScope scope)
     return {};
 }
 
-std::wstring displayName(FormatOption option)
+std::wstring displayName(ConfigScope scope, FormatOption option)
 {
     switch (option) {
-    case FormatOption::Auto:           return L"AUTO";
-    case FormatOption::Single:         return L"Mapa/Grade (único)";
+    case FormatOption::Auto:           return L"Automático";
+    case FormatOption::Single:
+        // O nome do arquivo único depende do escopo: Mapa (Comercial),
+        // Grade (Musical) ou Relógio (relógios).
+        switch (scope) {
+        case ConfigScope::Comercial:        return L"Mapa Único";
+        case ConfigScope::Musical:          return L"Grade Única";
+        case ConfigScope::RelogioComercial:
+        case ConfigScope::RelogioMusical:   return L"Relógio Único";
+        case ConfigScope::Afiliadas:        break;
+        }
+        return L"Único";
     case FormatOption::Weekly:         return L"Semanal";
-    case FormatOption::CommercialDay:  return L"Commercial Dia";
-    case FormatOption::CommercialDate: return L"Commercial Data";
+    case FormatOption::CommercialDay:  return L"Commercial por dia";
+    case FormatOption::CommercialDate: return L"Commercial por data cheia";
     case FormatOption::Planner:        return L"Planner";
     case FormatOption::Maker:          return L"Maker";
     case FormatOption::Unknown:        return L"Não reconhecido";

@@ -15,14 +15,15 @@ juce::Font editorFont()
                                         juce::Font::getDefaultStyle(), 15.0f));
 }
 
-// Cria um DrawablePath preenchido a partir de um Path (para os ícones dos
-// botões do topo do editor).
+// Cria um DrawablePath com contorno (ícones "de linha" dos botões do topo).
 std::unique_ptr<juce::Drawable> makeIcon(const juce::Path& shape,
                                          const juce::Colour& colour)
 {
     auto* icon = new juce::DrawablePath();
     icon->setPath(shape);
-    icon->setFill(colour);
+    icon->setStrokeFill(colour);
+    icon->setStrokeType(juce::PathStrokeType(
+        1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     return std::unique_ptr<juce::Drawable>(icon);
 }
 
