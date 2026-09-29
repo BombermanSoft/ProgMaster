@@ -1,12 +1,14 @@
 =======================================================================
-ARQUITETURA DO CÓDIGO — ProgMaster (Etapa 3, JUCE)
+ARQUITETURA DO CÓDIGO — ProgMaster (Etapa 4, JUCE)
 Data: 26/09/2026
 =======================================================================
 
 RESUMO: núcleo em C++ puro (std::wstring + std::filesystem) separado da
 camada de interface JUCE. Toda a regra de formato vive em src/readconf,
 testada sem UI (183 testes). O RELÓGIO da Etapa 3 tem núcleo próprio em
-src/relogio (85 testes). A UI (src/app) apenas "fonia" os núcleos.
+src/relogio (102 testes) e os BLOCOS da Etapa 4 têm núcleo próprio em
+src/blocos (BlockDocument + CodeCatalogue, 96 testes). A UI (src/app)
+apenas "fonia" os núcleos. Total: 410 testes automatizados.
 
 -----------------------------------------------------------------------
 1. VISÃO GERAL / CAMADAS
@@ -15,8 +17,14 @@ src/relogio (85 testes). A UI (src/app) apenas "fonia" os núcleos.
 | src/app         — interface JUCE (namespace `app` em quase     |
 |                   tudo; MainWindow, ConfiguratorTab,          |
 |                   EditorTab, RelogioEditorTab, RelogioEditor, |
-|                   BlocosTab, CodesTab, PlaylistConfigController|
+|                   BlockEditorTab, BlockEditor, CodePanel,     |
+|                   CodesTab, PlaylistConfigController,          |
 |                   LocatePlaylistDialog, ProgMasterApplication) |
++--------------------------------------------------------------+
+| src/blocos      — núcleo Etapa 4: modelo do MAPA/GRADE         |
+|                   (horários + códigos) e o CATÁLOGO de         |
+|                   códigos (Lista de Códigos + de sessão)       |
+|                   SEM JUCE                                    |
 +--------------------------------------------------------------+
 | src/relogio     — núcleo Etapa 3: modelo do arquivo de        |
 |                   RELÓGIO (horários + parâmetros) SEM JUCE     |
@@ -30,8 +38,9 @@ src/relogio (85 testes). A UI (src/app) apenas "fonia" os núcleos.
 |    PlaylistInstallation, PlaylistIni, FoldersXml)              |
 +--------------------------------------------------------------+
 
-Regra de ouro: nada em core/models/playlist/readconf/relogio conhece
-JUCE; conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
+Regra de ouro: nada em core/models/playlist/readconf/relogio/blocos
+conhece JUCE; conversões std::wstring <-> juce::String só em
+src/app/JuceHelpers.h.
 
 -----------------------------------------------------------------------
 2. ESCOPO DE CADA NAMESPACE / CLASSE
@@ -58,7 +67,20 @@ JUCE; conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
   - RelogioEditor           (editor VISUAL: linhas = horários, chips de
     parâmetros, paleta "grudada", aria Início/Intervalo/Avulso,
     Copiar/Colar)
-  - BlocosTab               (tela PROVISÓRIA Blocos Musicais/Comerciais)
+  - BlocosTab               (SUBSTITUÍDO na Etapa 4 por BlockEditorTab)
+  - BlockEditorTab          (guia Blocos: sub-abas por arquivo
+    Mapa.txt/Mapa<dia> ou Grade.txt/Grade<dia>, Visual|Texto sobre o MESMO
+    BlockDocument, clipboard de horários+códigos COMPARTILHADO; mesma
+    resolução de arquivos do RelogioEditorTab)
+  - BlockEditor             (editor VISUAL: linhas = horários, chips de
+    CÓDIGO coloridos, código "grudado", aplicar aos selecionados,
+    horários avulso/preencher, Copiar/Colar)
+  - CodePanel               (paleta de CÓDIGOS: botões coloridos, 2
+    fileiras por padrão, navegação ‹ ›, altura redimensionável, "+" para
+    código de SESSÃO e lixeira só para códigos de sessão)
+  - codeColour(int)         (paleta fixa de 12 cores; a cor vem do índice
+    do código no catálogo — a MESMA cor no painel e no chip)
+  - BlockClip               (struct horário + códigos do clipboard)
   - jstr() / wstr()         (helpers de conversão, JuceHelpers.h)
 
 2.3. src/readconf (namespace readconf)
@@ -81,6 +103,22 @@ JUCE; conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
     e paramText/parse; FIXO/DESCARTE/LOCAL/SAT/LOCKED (sem valor) e
     ID/DUR (com valor). Só os PARÂMETROS CONHECIDOS viram chips; o
     restante da linha permanece trailing preservado.
+
+2.5. src/blocos (namespace blocos) — núcleo da Etapa 4
+  - BlockDocument           modelo do arquivo de BLOCO (Mapa/Grade): cada
+    linha é HORÁRIO (HH:MM + códigos na ordem + trecho final) ou LINHA
+    CRUA. Round-trip EXATO: preserva CRLF, o separador entre o horário e
+    o primeiro código, a ordem, os códigos REPETIDOS (o Mapa real repete
+    COMER cinco vezes na primeira linha), a vírgula/espaço final e as
+    linhas que não são horário. Operações: addCode/removeCode (por
+    ocorrência, sem deduplicar o que já existe), adicionar/remover
+    horário, reschedule, copy/insert, lines()/text().
+  - CodeCatalogue          códigos em ordem estável: os lidos do
+    folders.xml (via FoldersXml, sempre somente LEITURA) + os de SESSÃO
+    criados pelo "+". indexOf/empty/entries; addSessionCode (recusa
+    vazio/com espaço/inexistente) e removeSessionCode (recusa código do
+    arquivo). A cor NÃO é persistida (ver CONTEXTO K.8).
+  - CodeEntry              struct { code, title, sessionOnly }
 
 -----------------------------------------------------------------------
 3. FLUXO DE DADOS DO playlist.ini
@@ -177,13 +215,13 @@ JUCE; conversões std::wstring <-> juce::String só em src/app/JuceHelpers.h.
   ProgMasterApplication -> Settings, Log, PlaylistLocator, MainWindow
 MainWindow            -> PlaylistConfigController (dono),
                             EditorTab, ConfiguratorTab, CodesTab,
-                            RelogioEditorTab, BlocosTab,
+                            RelogioEditorTab, BlockEditorTab,
                             LocatePlaylistDialog, PlaylistInstallation.
                             refreshFromLocator define a pasta DE
                             PROGRAMAÇÃO = pasta do Playlist.exe (ex.:
                             C:\Playlist\pgm) e passa ao controller via
-                            setInstallationFolder; RelogioEditorTab
-                            acompanha a nova localização.
+                            setInstallationFolder; RelogioEditorTab e
+                            BlockEditorTab acompanham a nova localização.
   ConfiguratorTab       -> readconf (ReadScope/Snapshots),
                             app::ScopeCard/AfiliadasCard (friend)
   CodesTab              -> FoldersXml, PlaylistInstallation
@@ -192,10 +230,20 @@ MainWindow            -> PlaylistConfigController (dono),
                             (RelogioDocument), RelogioEditor, TextFileIO
   RelogioEditor         -> relogio::RelogioDocument (referência) e área
                             de transferência compartilhada
+  BlockEditorTab        -> readconf (resolveSpecs/folderFor), blocos
+                            (BlockDocument, CodeCatalogue), BlockEditor,
+                            TextFileIO, core (TextFileIO/Log)
+  BlockEditor           -> blocos::BlockDocument (referência) + CodePanel
+                            (o painel) + área de transferência compartilhada
+  CodePanel             -> blocos::CodeCatalogue (referência); NUNCA
+                            escreve no folders.xml
   PlaylistConfigController -> PlaylistIniDocument, PlaylistIni,
                             TextFileIO, ReadingConfiguration
   (Testes) tests\RulesTests -> readconf apenas (sem JUCE).
   (Testes) relogio\tests\RelogioTests -> relogio apenas (sem JUCE).
+  (Testes) blocos\tests\BlockTests -> blocos apenas (sem JUCE); o teste
+  do folders.xml usa um arquivo temporário e confere os BYTES no final
+  (prova de que a leitura não escreve).
 
 -----------------------------------------------------------------------
 8. DADOS PERSISTIDOS E CODIFICAÇÕES
@@ -211,10 +259,13 @@ MainWindow            -> PlaylistConfigController (dono),
 9. CONSTRUÇÃO E TESTES
 -----------------------------------------------------------------------
   cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-  cmake --build build --config Release --target ProgMaster ProgMasterCoreTests ProgMasterRelogioTests
+  cmake --build build --config Release --target ProgMaster ProgMasterCoreTests ProgMasterRelogioTests ProgMasterBlocosTests ProgMasterPlaylistTests
   -> 0 erros 0 warnings (/W4); ProgMaster.exe em build\ProgMaster_artefacts\Release\
   -> ProgMasterCoreTests.exe 183/183 PASS (build\Release\)
-  -> ProgMasterRelogioTests.exe 85/85 PASS (build\Release\)
+  -> ProgMasterRelogioTests.exe 102/102 PASS (build\Release\)
+  -> ProgMasterBlocosTests.exe 96/96 PASS (build\Release\)
+  -> ProgMasterPlaylistTests.exe 29/29 PASS (build\Release\)
+  Total: 410/410.
 
   Observações: JUCE baixado por FetchContent (GIT_TAG 8.0.15 shallow);
   CMake LANGUAGES C CXX; /utf-8; CRT estática (/MT); targets próprios
@@ -225,6 +276,10 @@ MainWindow            -> PlaylistConfigController (dono),
 -----------------------------------------------------------------------
   - Suíte de testes de GUI (manual hoje) e validação por click do
     callback MessageBoxOptions (0/1/2) — A DEFINIR.
-  - Editor visual de Grades/Mapas e dos Blocos (tela provisória e
-    edição textual hoje) — aguarda EXEMPLO REAL (Próxima etapa).
+  - PERSISTÊNCIA dos códigos criados pelo "+" e das cores por código
+    (hoje só na sessão; ver CONTEXTO K.8) — A DEFINIR, inclui o que fazer
+    quando um arquivo salvo cita um código de sessão que não existe mais.
+  - Aviso visual para horário com código desconhecido (hoje aparece sem
+    cor) e opção de corrigi-lo — A DEFINIR.
+  - Ampliar o editor visual para outros blocos, se o cliente pedir.
   - Backups / identidade visual final (aguarda especificação).

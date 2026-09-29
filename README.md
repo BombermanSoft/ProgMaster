@@ -2,9 +2,9 @@
 
 Programa de desktop para **Windows** (C++17) que complementa o sistema
 **Playlist**: localiza o Playlist.exe, edita o `playlist.ini` (visualmente e
-como bloco de notas), mantém as seções de programação organizadas e mostra a
-lista de IDs do folders.xml — tudo com interface gráfica **JUCE** e núcleo
-lógico em C++ puro.
+como bloco de notas), edita visualmente os Mapas, Grades e Relógios, mantém as
+seções de programação organizadas e mostra a lista de IDs do `folders.xml` — tudo
+com interface gráfica **JUCE** e núcleo lógico em C++ puro.
 
 Interface em português, três guias:
 
@@ -14,8 +14,11 @@ Interface em português, três guias:
   `[BLOCO MUSICAL]`, `[RELOGIO COMERCIAL]`, `[RELOGIO MUSICAL]`) com escolha
   assistida do formato, mais o cartão `[AFILIADAS]` (nome | endereço | porta |
   ativa);
-- **Códigos** — listagem (somente leitura) dos IDs do folders.xml da
+- **Códigos** — listagem (somente leitura) dos IDs do `folders.xml` da
   instalação do Playlist.
+
+O menu **Editar** traz os editores **visuais** (Relógio e Blocos) e o menu
+**Avançado** traz a edição **textual** dos mesmos arquivos.
 
 ## Funcionalidades
 
@@ -36,11 +39,53 @@ Interface em português, três guias:
   (validação antes de gravar; erro claro quando falha);
 - `✎ Visualizar como texto` grava e abre o `playlist.ini` no Bloco de Notas do
   Windows (volta à guia relendo o disco);
-- Menu Editar abre os arquivos de programação (Programação / Mapa Comercial /
-  Grades Musicais / Relógio Comercial / Relógio Musical);
 - Confirmação **Salvar / Descartar alterações / Cancelar** ao fechar com
   pendências;
 - Menus, abas e diálogos totalmente em português, com acentos corretos;
+
+### Editor visual dos Relógios
+
+- Cada horário (`HH:MM`) em uma linha; os parâmetros reconhecidos viram **chips
+  coloridos** e o restante da linha (conteúdo preservado) fica em cinza;
+- Paleta de parâmetros **grudada no mouse**: clicar num parâmetro o arma, um
+  chip fantasma segue o cursor e o clique num horário o adiciona (cancelar:
+  clicar no mesmo parâmetro, botão direito ou `ESC`);
+- **Início** (00:00), **Intervalo** (horário do meio entre dois vizinhos) e
+  **Avulso** (HH:MM digitado);
+- **Copiar / Colar** de parâmetros compartilhado entre relógios e sub-abas;
+- Modos **Visual | Texto** sobre o **mesmo documento em memória** (alternar não
+  perde nada).
+
+### Editor visual de Mapas e Grades (Blocos)
+
+- Lê o **formato real** dos arquivos (`Mapa.txt`, `GRADE.txt` e as versões
+  semanais): `HH:MM COD, COD, ... ` — inclusive os códigos **repetidos** (o
+  Mapa real repete `COMER` cinco vezes na primeira linha);
+- **Round-trip exato**: salvar sem mexer devolve o arquivo **byte a byte igual**,
+  preservando a vírgula/espaço depois do último código, a ordem, os códigos
+  desconhecidos e as linhas que não são horário (comentários, `[SEÇÃO]`, linhas
+  em branco);
+- **Painel de Códigos** no topo: os DBFId da Lista de Códigos viram botões
+  **coloridos**, com a mesma cor usada nos chips dentro dos horários. Mostra
+  **duas fileiras** por padrão, tem navegação `‹ ›` quando há mais códigos do
+  que cabe e a altura é **redimensionável** (1 a 8 fileiras);
+- **Código grudado no mouse**: clicar num código o arma; o clique num horário o
+  adiciona e ele continua armado (repetir rápido nos vários horários);
+- Botão **`+`** cria um **código de sessão** (só nesta sessão, com borda
+  tracejada) e a **lixeira** remove apenas códigos de sessão — o `folders.xml` é
+  **sempre somente leitura**;
+- **Aplicar** envia um código a todos os horários selecionados; **Remover**
+  pergunta se apaga os horários inteiros ou só os códigos;
+- **Copiar / Colar** de horários + códigos compartilhado entre os arquivos;
+- Alternância **Visual | Texto** sobre o mesmo documento, com rodapé mostrando
+  caminho e estado (alterações não salvas, arquivo inexistente).
+
+### Lista de Códigos (`folders.xml`)
+
+- Leitura correta do arquivo real: os elementos são `<Folder0>`..`<FolderN>` (não
+  `<Folder>`), o bloco `<Shared>` (pastas compartilhadas) **não** é código e o
+  `DBFId` é pareado com o `Title` **do mesmo registro**;
+- Somente leitura: o arquivo original nunca é alterado.
 
 ## Requisitos
 
@@ -54,7 +99,7 @@ Para **usar**: basta um único executável (CRT estático), sem redistribuível 
 
 ```
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Release --target ProgMaster ProgMasterCoreTests
+cmake --build build --config Release --target ProgMaster ProgMasterCoreTests ProgMasterRelogioTests ProgMasterBlocosTests ProgMasterPlaylistTests
 ```
 
 Resultado:
@@ -62,9 +107,12 @@ Resultado:
 ```
 build\ProgMaster_artefacts\Release\ProgMaster.exe
 build\Release\ProgMasterCoreTests.exe
+build\Release\ProgMasterRelogioTests.exe
+build\Release\ProgMasterBlocosTests.exe
+build\Release\ProgMasterPlaylistTests.exe
 ```
 
-Estado esperado: 0 erros, 0 warnings (a suíte de testes roda 165/165).
+Estado esperado: 0 erros, 0 warnings (a suíte de testes roda 410/410).
 
 ## Como executar
 
@@ -79,11 +127,17 @@ BOM e `log.txt` UTF-8 com BOM).
 ## Testes
 
 ```
-build\Release\ProgMasterCoreTests.exe
+build\Release\ProgMasterCoreTests.exe       183/183  regras e playlist.ini
+build\Release\ProgMasterRelogioTests.exe   102/102  modelo dos Relógios
+build\Release\ProgMasterBlocosTests.exe     96/96  modelo de Mapas/Grades + catálogo
+build\Release\ProgMasterPlaylistTests.exe   29/29  leitor do folders.xml
 ```
 
 Os testes cobrem regras de formato, parse/re-serialização do `.ini`,
-localização de arquivos por escopo e validação de afiliadas. Manual:
+localização de arquivos por escopo, validação de afiliadas, o round-trip exato
+dos Relógios e dos Blocos e a leitura da Lista de Códigos (inclusive a prova, por
+comparação de bytes, de que o `folders.xml` não é alterado). Não há suíte de GUI
+automatizada — a validação da interface é manual:
 
 - `docs\ROTEIRO_DE_TESTES.txt` — roteiro de testes manuais
 - `docs\CONTEXTO_PROJETO.txt` — histórico, decisões e lista do que está
@@ -104,7 +158,12 @@ localização de arquivos por escopo e validação de afiliadas. Manual:
    │                       FoldersXml (somente leitura)
    ├─ readconf\            Núcleo Etapa 2: regras/leitura dos formatos do
    │                       playlist.ini (+ tests\RulesTests.cpp)
-   └─ app\                 Interface JUCE: janela, menus e as 3 guias
+   ├─ relogio\             Núcleo Etapa 3: modelo dos Relógios
+   │                       (+ tests\RelogioTests.cpp) — sem JUCE
+   ├─ blocos\              Núcleo Etapa 4: modelo de Mapas/Grades e catálogo
+   │                       de códigos (+ tests\BlockTests.cpp) — sem JUCE
+   └─ app\                 Interface JUCE: janela, menus, guias e editores
+                           visuais (RelogioEditor, BlockEditor, CodePanel)
 ```
 
 ## Documentação

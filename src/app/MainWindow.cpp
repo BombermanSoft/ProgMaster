@@ -53,6 +53,7 @@ MainWindow::MainWindow(PlaylistLocator& locator)
       m_codesTab(m_installation),
       m_configTab(m_controller),
       m_relogioTab(m_controller, m_installation),
+      m_blocosTab(m_controller, m_installation),
       m_tabs(juce::TabbedButtonBar::TabsAtTop),
       m_contentPane(m_tabs, m_statusLabel)
 {
@@ -97,7 +98,8 @@ void MainWindow::ensurePlaylistPath()
 void MainWindow::requestCloseWithConfirmation()
 {
     const bool dirty = m_controller.isDirty() || m_editorTab.hasUnsavedChanges() ||
-                       m_relogioTab.hasUnsavedChanges();
+                       m_relogioTab.hasUnsavedChanges() ||
+                       m_blocosTab.hasUnsavedChanges();
     if (!dirty) {
         finishQuit();
         return;
@@ -213,11 +215,11 @@ void MainWindow::menuItemSelected(int menuItemID, int /*topLevelMenuIndex*/)
         break;
     case IDM_EDIT_BLOCOS_MUSICAIS:
         showTab(TAB_BLOCOS);
-        m_blocosTab.setMusical(true);
+        m_blocosTab.openBlocos(readconf::ConfigScope::Musical);
         break;
     case IDM_EDIT_BLOCOS_COMERCIAL:
         showTab(TAB_BLOCOS);
-        m_blocosTab.setMusical(false);
+        m_blocosTab.openBlocos(readconf::ConfigScope::Comercial);
         break;
     case IDM_EDIT_RELOGIO_MUSICAL:
         showTab(TAB_RELOGIO);
@@ -294,6 +296,10 @@ void MainWindow::refreshFromLocator()
     // os caminhos da NOVA localização.
     m_relogioTab.refreshFromController();
 
+    // O tab Blocos (Mapas/Grades) idem, e relê a Lista de Códigos
+    // (folders.xml, somente leitura).
+    m_blocosTab.refreshFromController();
+
     // A barra de status global não mostra mais caminhos fixos — o caminho do
     // arquivo em edição fica no rodapé do próprio editor.
     if (!m_controller.lastLoadMessage().empty()) {
@@ -366,8 +372,15 @@ void MainWindow::saveOrDiscardCurrent(bool save)
             m_relogioTab.reopenFromDisk();
         }
         break;
+    case TAB_BLOCOS:
+        if (save) {
+            m_blocosTab.saveCurrentFile();
+        } else {
+            m_blocosTab.reopenFromDisk();
+        }
+        break;
     default:
-        // Guia Códigos e Blocos: somente leitura — nada a salvar/descartar.
+        // Guia Códigos: somente leitura — nada a salvar/descartar.
         break;
     }
 }

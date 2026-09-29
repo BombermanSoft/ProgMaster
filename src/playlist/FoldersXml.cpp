@@ -115,6 +115,30 @@ void parseAttributes(const std::wstring& s,
     }
 }
 
+// Nome de elemento de REGISTRO de código: "Folder" seguido de dígitos
+// opcionais (o Folders.xml real usa <Folder0>..<Folder15>). Não casa com
+// "<Folders>" (que é a raiz/ contador) nem com os elementos do <Shared>.
+bool isFolderElementName(const std::wstring& name)
+{
+    static const wchar_t kPrefix[] = L"folder";
+    constexpr size_t kPrefixLen = 6;
+
+    if (name.size() < kPrefixLen) {
+        return false;
+    }
+    for (size_t i = 0; i < kPrefixLen; ++i) {
+        if (std::towlower(static_cast<unsigned short>(name[i])) != kPrefix[i]) {
+            return false;
+        }
+    }
+    for (size_t i = kPrefixLen; i < name.size(); ++i) {
+        if (name[i] < L'0' || name[i] > L'9') {
+            return false;
+        }
+    }
+    return true;
+}
+
 // Preenche o campo correspondente de um registro. A primeira ocorrência de
 // cada campo dentro do mesmo <Folder> vence (as demais são ignoradas).
 void assignField(FolderEntry& entry, const std::wstring& field, const std::wstring& value)
@@ -250,12 +274,16 @@ std::wstring FoldersXml::readAll(const std::filesystem::path& path,
     }
 
     // Parser simples, somente leitura, construído especificamente para a
-    // estrutura esperada do folders.xml (elementos <Folder>).
+    // estrutura esperada do folders.xml.
     //
     // Regras:
-    //  - cada <Folder> que abre cria um novo registro interno;
+    //  - cada registro <Folder> / <Folder0> / <Folder1>... que abre cria um
+    //    registro interno (no Folders.xml real os registros são <Folder0>..
+    //    <Folder15>, e não <Folder>);
+    //  - o bloco <Shared> contém as pastas COMPARTILHADAS da instalação
+    //    (<Folder0><Name>..</Name><Path>..</Path>) e NÃO é um código: é
+    //    ignorado por completo;
     //  - os campos são preenchidos com o texto direto dos elementos filhos;
-    //  - registros aninhados (pastas dentro de pastas) geram entradas independentes;
     //  - registros sem <DBFId> continuam na lista (a interface os trata como
     //    "sem código", sem inventar um valor).
     std::vector<FolderEntry> stack;
@@ -269,6 +297,8 @@ std::wstring FoldersXml::readAll(const std::filesystem::path& path,
     size_t folderSelfClosingCount = 0;
     size_t dbfIdTagCount = 0;
     size_t titleTagCount = 0;
+    // Profundidade do bloco <Shared> (pastas compartilhadas, ignorado).
+    size_t sharedDepth = 0;
 
     size_t pos = 0;
     while (pos < n) {
@@ -279,6 +309,30 @@ std::wstring FoldersXml::readAll(const std::filesystem::path& path,
 
         size_t contentStart = std::wstring::npos;
         ParsedTag tag = parseTag(xml, lt, contentStart);
+
+        // Dentro de <Shared> nada é código: apenas conta a profundidade para
+        // saber quando o bloco termina.
+        if (sharedDepth > 0) {
+            if (tag.kind == TagKind::Open) {
+                ++sharedDepth;
+            } else if (tag.kind == TagKind::Close) {
+                --sharedDepth;
+            }
+            if (tag.after <= lt) {
+                break;
+            }
+            pos = tag.after;
+            continue;
+        }
+
+        if (tag.kind == TagKind::Open && icaseEquals(tag.name, L"Shared")) {
+            sharedDepth = 1;
+            if (tag.after <= lt) {
+                break;
+            }
+            pos = tag.after;
+            continue;
+        }
 
         if (tag.kind == TagKind::Open || tag.kind == TagKind::Close ||
             tag.kind == TagKind::SelfClosing) {
@@ -291,7 +345,7 @@ std::wstring FoldersXml::readAll(const std::filesystem::path& path,
                 }
             }
 
-            if (icaseEquals(tag.name, L"Folder")) {
+            if (isFolderElementName(tag.name)) {
                 if (tag.kind == TagKind::Open) {
                     ++folderOpenCount;
                     stack.push_back(FolderEntry());

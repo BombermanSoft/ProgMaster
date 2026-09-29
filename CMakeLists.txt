@@ -61,6 +61,9 @@ set(PROGMASTER_CORE
     src/readconf/ReadingConfiguration.cpp
 
     src/relogio/RelogioDocument.cpp
+
+    src/blocos/BlockDocument.cpp
+    src/blocos/CodeCatalogue.cpp
 )
 
 # ----------------------------------------------------------------------------
@@ -85,7 +88,9 @@ target_sources(ProgMaster PRIVATE
     src/app/EditorTab.cpp
     src/app/RelogioEditorTab.cpp
     src/app/RelogioEditor.cpp
-    src/app/BlocosTab.cpp
+    src/app/BlockEditorTab.cpp
+    src/app/BlockEditor.cpp
+    src/app/CodePanel.cpp
     src/app/CodesTab.cpp
     src/app/LocatePlaylistDialog.cpp
     src/app/PlaylistConfigController.cpp
@@ -145,3 +150,34 @@ target_include_directories(ProgMasterRelogioTests PRIVATE
 if(MSVC)
     target_compile_options(ProgMasterRelogioTests PRIVATE /W4)
 endif()
+
+# ----------------------------------------------------------------------------
+# Testes do modelo dos Blocos (Mapas Comerciais e Grades Musicais) — sem JUCE.
+# ----------------------------------------------------------------------------
+
+add_executable(ProgMasterBlocosTests
+    ${PROGMASTER_CORE}
+    src/blocos/tests/BlockTests.cpp
+)
+target_include_directories(ProgMasterBlocosTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+    target_compile_options(ProgMasterBlocosTests PRIVATE /W4)
+endif()
+
+# ----------------------------------------------------------------------------
+# Testes do leitor da Lista de Códigos (folders.xml — somente leitura).
+# ----------------------------------------------------------------------------
+
+add_executable(ProgMasterPlaylistTests
+    ${PROGMASTER_CORE}
+    src/playlist/tests/FoldersXmlTests.cpp
+)
+target_include_directories(ProgMasterPlaylistTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+    target_compile_options(ProgMasterPlaylistTests PRIVATE /W4)
+endif()
+

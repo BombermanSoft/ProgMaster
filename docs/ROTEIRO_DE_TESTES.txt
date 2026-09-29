@@ -1,12 +1,15 @@
 =======================================================================
-ROTEIRO DE TESTES MANUAIS — ProgMaster (Fase 3, rodada 26/09/2026)
-Uso: validar a Etapa 3 (interfaces simplificadas + editor visual de
-Relógios). O item 1 (reconhecimento do playlist.ini) continua sendo o
-MAIS IMPORTANTE — teste-o primeiro e com cuidado.
-Nesta rodada, confira os itens NOVOS 18 a 20: menus Editar/Avançado,
-tela provisória de Blocos e o editor VISUAL do Relógio (paleta
-"grudada", Início/Intervalo/Avulso, Copiar/Colar, Visual|Texto).
-O item 14 foi ATUALIZADO para a grafia canônica real dos ARQUIVO=.
+ROTEIRO DE TESTES MANUAIS — ProgMaster (Fase 4, rodada 26/09/2026)
+Uso: validar a Etapa 4 (editor visual de Mapas/Grades + correção da
+Lista de Códigos). O item 1 (reconhecimento do playlist.ini) continua
+sendo o MAIS IMPORTANTE — teste-o primeiro e com cuidado.
+Nesta rodada, confira os itens NOVOS 18 a 22: o editor VISUAL dos Blocos
+(painel de Códigos, redimensionamento, código "grudado", "+" de sessão,
+lixeira, horários, seleção, Aplicar, Copiar/Colar, Visual|Texto), o
+arquivo real preservado byte a byte e a correção do folders.xml.
+O item 19 (Relógio) continua valendo — a Etapa 4 não mexeu nele.
+O item 14 foi ATUALIZADO na Etapa 3 para a grafia canônica real dos
+ARQUIVO=.
 =======================================================================
 
 PREPARAÇÃO
@@ -249,6 +252,13 @@ PREPARAÇÃO
       (quando ausente) e "Leitura concluída — carregado da pasta de
       instalação do Playlist." (quando presente). Nenhuma menção ao
       arquivo folders.xml na interface.
+13.2. Sem a Lista de IDs (ou numa instalação sem codes), abrir a guia
+      Blocos: o painel de Códigos deve mostrar a mensagem de que nenhum
+      código foi encontrado, e a lista de horários continua utilizável
+      (campo HH:MM + OK, Preencher, Copiar/Colar). O botão "+" continua
+      disponível para criar um código de sessão.
+      (Etapa 4 — o painel de Códigos do editor de Blocos depende da Lista
+      de Códigos; antes não existia.)
 
 -----------------------------------------------------------------------
 14) GRAFIA CANÔNICA REAL DOS ARQUIVO= (atualizado 26/09)
@@ -308,13 +318,72 @@ PREPARAÇÃO
       apenas entre os BLOCOS de seção, não entre afiliadas).
 
 -----------------------------------------------------------------------
-18) MENU EDITAR ▸ BLOÇOS (tela provisória)
+18) MENU EDITAR ▸ BLOCOS (editor visual de Mapas/Grades)
 -----------------------------------------------------------------------
 18.1. Menu Editar ▸ Blocos Musicais e ▸ Blocos Comerciais.
-      ESPERADO: a guia "Blocos" abre com o título correspondente e o
-      texto "O editor visual dos blocos está previsto para uma próxima
-      etapa" + indicação de edição textual em "Avançado". Sem crash,
-      sem tela vazia.
+       ESPERADO: a guia "Blocos" abre com o título correspondente e o
+       EDITOR VISUAL já montado (painel de Códigos no topo, barra de
+       horários, lista de linhas, rodapé com caminho). Sem crash, sem tela
+       vazia e sem a tela provisória.
+18.2. Sub-abas por arquivo. Se o bloco for ÚNICO no playlist.ini, a
+       sub-aba é "Mapa.txt" (comercial) ou "Grade.txt" (musical). Se for
+       SEMANAL, são as sete sub-abas (MapaSeg..MapaDom / GradeSeg..GradeDom)
+       e o conteúdo de cada dia é o do arquivo daquele dia.
+18.3. Painel de Códigos. Os botões coloridos são os DBFId da Lista de
+       Códigos (folders.xml) da instalação. A Lista real tem dezenas de
+       códigos: o painel NÃO tenta mostrar todos de uma vez — aparecem até
+       DUAS fileiras e o contador "1/N" (canto inferior esquerdo) indica a
+       página; os botões ‹ e › mudam de página. O conjunto de códigos
+       permanece completo.
+18.4. Redimensionar o painel. Arrastar a BORDA INFERIOR do painel para
+       cima: o painel CRESCE, ganha mais fileiras (até 8) e os códigos se
+       reorganizam; arrastar para baixo encolhe (mínimo 1). A borda fica
+       verde-azulada quando o cursor está sobre ela.
+18.5. Código "grudado". Clicar num código da paleta o ARMA (borda branca) e
+       o rodapé passa a dizer "Código XXX armado — clique num horário...";
+       um chip fantasma segue o mouse sobre a lista. Clicar num horário
+       adiciona o código e ele CONTINUA armado (para repetir nos outros
+       horários). Desarmar: clicar no mesmo código, botão direito ou ESC —
+       o rodapé volta à mensagem normal.
+18.6. Cores coerentes. O chip de um código dentro do horário tem a MESMA
+       cor do botão do mesmo código no painel.
+18.7. Criar um código (botão "+"). Abre o diálogo "Novo código"; digitar
+       só letras/números (o espaço é recusado, e o código precisa ser
+       novo). O código passa a existir no painel com BORDA TRACEJADA
+       (sinal de "criado nesta sessão"), já ARMADO, e o rodapé avisa.
+       ESPERADO: o folders.xml NÃO é alterado em hipótese nenhuma — o
+       arquivo original precisa continuar intacto.
+18.8. Lixeira. Com um código de sessão ARMADO, o botão ✕ fica habilitado e
+       o remove. Com um código do folders.xml armado, o botão fica
+       DESABILITADO e, se clicado mesmo assim, avisa que a Lista de Códigos
+       é somente leitura.
+18.9. Horários. Campo "Adicionar Horário" + "OK": digitar 00:15 e OK cria
+       essa linha; formato inválido avisa e não cria. "Preencher Horários":
+       Início 00:00 + Intervalo 30 gera 00:00, 00:30, 01:00, ... até o fim
+       do dia; intervalo zero/letras/valor muito grande são recusados.
+18.10. Seleção múltipla. O quadrado "Selecionar" ativa o modo seleção
+       (aparece a caixa de marca em cada linha); clicar marca/desmarca.
+       Ativado, o próprio quadrado passa a ser "selecionar todos" e, se já
+       estiverem todos marcados, limpa a seleção.
+18.11. Aplicar. Com horários selecionados, escolher um código no seletor
+       e clicar "Aplicar": o código entra em TODOS os selecionados. Com o
+       seletor em "Código" (sem escolha), deve avisar e não alterar nada.
+18.12. Remover. "Remover" pergunta o quê: Horários (apaga as linhas
+       inteiras) ou Códigos (apaga os chips e mantém o horário). Botão
+       direito direto num chip também remove aquele código.
+18.13. Copiar/Colar. Selecionar horários -> "Copiar" (Ctrl+C) -> clicar
+       em OUTRO horário (mesma ou outra sub-aba) -> "Colar" (Ctrl+V): os
+       horários copiados são criados/apparecem no documento. O clipboard é
+       compartilhado entre as sub-abas (Mapas e Grades, dias diferentes).
+18.14. Visual | Texto. Alternar "Visual" e "Texto" na página: é o MESMO
+       documento em memória, nada se perde ao alternar. No modo Texto dá
+       para digitar/ver o conteúdo literal do arquivo.
+18.15. Salvar/Descartar. Alterar algo e olhar o rodapé: deve indicar
+       alteração não salva. Menu Arquivo ▸ Salvar grava o arquivo ativo
+       (pergunte antes de usar em arquivo real; o rodapé mostra o caminho
+       exato). Descartar recarrega do disco. Fechar a janela com
+       alterações -> diálogo Salvar/Descartar/Cancelar também considera a
+       guia Blocos.
 
 -----------------------------------------------------------------------
 19) EDITOR VISUAL DO RELÓGIO (guia "Relógio")
@@ -323,46 +392,82 @@ Preparação: abrir Editar ▸ Relógio Musical ou Comercial (o arquivo pode
 ser vazio no início).
 
 19.1. Horários. Clicar em "Início": uma linha 00:00 é adicionada no
-      relógio. Clicar em "Intervalo" com um horário selecionado: o
-      horário do MEIO entre ele e o seguinte é adicionado (ex.: 00:00 e
-      00:04 -> 00:02). "Avulso...": pede um HH:MM e adiciona; inválido
-      mostra mensagem e não altera.
+       relógio. Clicar em "Intervalo" com um horário selecionado: o
+       horário do MEIO entre ele e o seguinte é adicionado (ex.: 00:00 e
+       00:04 -> 00:02). "Avulso...": pede um HH:MM e adiciona; inválido
+       mostra mensagem e não altera.
 19.2. Chips de parâmetros. A paleta na parte de baixo mostra os botões
-      (FIXO), (DESCARTE), (LOCAL), (SAT), (LOCKED), (ID=), (DUR=) com
-      cores próprias. Clicar num chip ARMA o parâmetro — um chip
-      fantasma segue o mouse e a linha sob o cursor fica destacada.
-      Clicar numa linha adiciona o parâmetro e mantém armado (para
-      repetir em outros horários). Cancelar o armado: botão direito,
-      ESC, clicar no mesmo chip da paleta.
+       (FIXO), (DESCARTE), (LOCAL), (SAT), (LOCKED), (ID=), (DUR=) com
+       cores próprias. Clicar num chip ARMA o parâmetro — um chip
+       fantasma segue o mouse e a linha sob o cursor fica destacada.
+       Clicar numa linha adiciona o parâmetro e mantém armado (para
+       repetir em outros horários). Cancelar o armado: botão direito,
+       ESC, clicar no mesmo chip da paleta.
 19.3. Remover parâmetro: botão direito em cima de um chip da linha o
-      remove. Selecionar linha: clique esquerdo nela.
+       remove. Selecionar linha: clique esquerdo nela.
 19.4. Copiar/Colar: selecionar um horário -> Ctrl+C (ou "Copiar") ->
-      selecionar OUTRO horário (do MESMO relógio ou de outra aba) ->
-      Ctrl+V (ou "Colar"): os parâmetros são aplicados. O clipboard é
-      compartilhado entre as abas/sub-abas.
+       selecionar OUTRO horário (do MESMO relógio ou de outra aba) ->
+       Ctrl+V (ou "Colar"): os parâmetros são aplicados. O clipboard é
+       compartilhado entre as abas/sub-abas.
 19.5. Visual | Texto: na página, alternar entre "Visual" e "Texto" —
-      o texto de cada arquivo é o mesmo documento, nada se perde ao
-      alternar; no modo Texto dá para digitar por fora dos chips e ver
-      o conteúdo preservado.
+       o texto de cada arquivo é o mesmo documento, nada se perde ao
+       alternar; no modo Texto dá para digitar por fora dos chips e ver
+       o conteúdo preservado.
 19.6. Salvar/Descartar: menu Arquivo ▸ Salvar grava o arquivo ativo;
-      Descartar recarrega do disco. Ao fechar com alterações, o diálogo
-      Salvar/Descartar/Cancelar também considera a guia Relógio.
+       Descartar recarrega do disco. Ao fechar com alterações, o diálogo
+       Salvar/Descartar/Cancelar também considera a guia Relógio.
 
 -----------------------------------------------------------------------
-20) RELÓGIO — MODO TEXTO E CONTEÚDO PRESERVADO
+20) BLOCOS — ARQUIVO REAL E CONTEÚDO PRESERVADO
 -----------------------------------------------------------------------
-20.1. Abrir um relógio REAL (com horários e parâmetros, ex. o relógio
-      comercial da instalação) na guia Relógio, modo Visual.
-      ESPERADO: cada hora em uma linha, parâmetros conhecidos como chips
-      coloridos, e o restante da linha (conteúdo que o programa não
-      interpreta) em cinza logo após os chips. Nada é apagado.
-20.2. Alternar para "Texto": o conteúdo visto é EXATAMENTE o do arquivo
-      (CRLF etc.). Salvar não altera nada do que o editor visual não
-      tocou.
+Preparação: apontar a instalação para uma cópia de
+"C:\Playlist_oficial\pgm" (NÃO work na instalação original).
 
-----------------------------------------------------------------------
+20.1. Abrir Editar ▸ Blocos Comerciais (Mapa.txt) e ▸ Blocos Musicais
+       (Grade.txt) na aba VISUAL.
+       ESPERADO: as 48 linhas de horário de cada arquivo, com os códigos
+       em chips coloridos na MESMA ordem do arquivo. No Mapa real o código
+       COMER aparece repetido cinco vezes na primeira linha — os chips
+       repetidos DEVEM aparecer (não deduplicar na tela).
+20.2. Sem tocar em nada, ir em Texto e confirmar que o texto é o do
+       arquivo. Voltar para Visual.
+20.3. Salvar sem ter alterado nada e conferir no disco (com o Bloco de
+       Notas ou comparando o tamanho): o arquivo deve ficar IDÊNTICO
+       (mesmo tamanho de bytes) — em especial o ", " depois do último
+       código de cada linha, que não pode sumir.
+20.4. Confirmar no painel que todos os chips têm cor; códigos que NÃO
+       existem na Lista de Códigos aparecem SEM cor (cinza), e isso não é
+       erro — o arquivo é preservado assim mesmo.
+20.5. Se o arquivo tiver linhas que NÃO são horário (comentário, seção),
+       o editor VISUAL não as mostra, mas elas continuam no arquivo: ao
+       salvar, continuam lá. Verificar no modo Texto.
+
+-----------------------------------------------------------------------
+21) LISTA DE CÓDIGOS (correção do folders.xml)
+-----------------------------------------------------------------------
+21.1. Menu Arquivo ▸ Lista de IDs.
+       ESPERADO: os DBFId com o NOME CORRETO de cada pasta (antes, o nome
+       exibido era o de outro registro). Os registros do bloco <Shared>
+       (pastas compartilhadas) NÃO aparecem como códigos.
+21.2. Conferir o tamanho/data do folders.xml ANTES e DEPOIS de abrir a
+       lista, de abrir a guia Blocos e de usar o "+": o arquivo não pode
+       ser alterado (a lista é somente leitura).
+
+-----------------------------------------------------------------------
+22) RELÓGIO — MODO TEXTO E CONTEÚDO PRESERVADO
+-----------------------------------------------------------------------
+22.1. Abrir um relógio REAL (com horários e parâmetros, ex. o relógio
+       comercial da instalação) na guia Relógio, modo Visual.
+       ESPERADO: cada hora em uma linha, parâmetros conhecidos como chips
+       coloridos, e o restante da linha (conteúdo que o programa não
+       interpreta) em cinza logo após os chips. Nada é apagado.
+22.2. Alternar para "Texto": o conteúdo visto é EXATAMENTE o do arquivo
+       (CRLF etc.). Salvar não altera nada do que o editor visual não
+       tocou.
+
+-----------------------------------------------------------------------
 RESULTADO
-----------------------------------------------------------------------
+-----------------------------------------------------------------------
 Anotar para cada item: PASS (como esperado) ou FALHA (descrever o que
 aconteceu e o que era esperado). Relatar as falhas para correção na
 próxima rodada.

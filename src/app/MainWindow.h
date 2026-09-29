@@ -2,7 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-#include "app/BlocosTab.h"
+#include "app/BlockEditorTab.h"
 #include "app/CodesTab.h"
 #include "app/ConfiguratorTab.h"
 #include "app/EditorTab.h"
@@ -27,10 +27,10 @@ namespace app {
 //   Salvar                 -> salva o arquivo em edição (ou a configuração)
 //   Descartar alterações   -> recarrega o arquivo em edição do disco
 //   Sair                   -> fecha (com aviso se houver não salvo)
-// Menu "Editar" (Etapa 3 — interfaces simplificadas):
+// Menu "Editar" (Etapa 3/4 — interfaces simplificadas):
 //   Programação            -> guia Configuração (playlist.ini visual)
-//   Blocos Musicais        -> tela provisória (Avançado edita textualmente)
-//   Blocos Comerciais      -> tela provisória (Avançado edita textualmente)
+//   Blocos Musicais        -> guia Blocos (editor VISUAL das Grades)
+//   Blocos Comerciais      -> guia Blocos (editor VISUAL dos Mapas)
 //   Relógio Musical        -> guia Relógio (editor VISUAL do relógio)
 //   Relógio Comercial      -> guia Relógio (editor VISUAL do relógio)
 // Menu "Avançado" (o antigo menu "Editar" textual da Etapa 2):
@@ -120,7 +120,7 @@ private:
     CodesTab m_codesTab;
     ConfiguratorTab m_configTab;
     RelogioEditorTab m_relogioTab;
-    BlocosTab m_blocosTab;
+    BlockEditorTab m_blocosTab;
     juce::TabbedComponent m_tabs;
     juce::Label m_statusLabel;
     ContentPane m_contentPane;

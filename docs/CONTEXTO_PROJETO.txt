@@ -1,9 +1,10 @@
 =======================================================================
 CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
 Data: 26/09/2026
-Status: Etapa 3 concluída (build limpo /W4, 268 testes: 183 do núcleo
-        (Etapa 2) + 85 do Relógio (Etapa 3), app abre); Etapa 2 concluída;
-        testes manuais pendentes (docs\ROTEIRO_DE_TESTES.txt)
+Status: Etapa 4 concluída (build limpo /W4, 410 testes: 183 do núcleo
+        (Etapa 2) + 102 do Relógio (Etapa 3) + 96 dos Blocos e 29 do
+        leitor da Lista de Códigos (Etapa 4), app abre); Etapas 2 e 3
+        concluídas; testes manuais pendentes (docs\ROTEIRO_DE_TESTES.txt)
 =======================================================================
 
 -----------------------------------------------------------------------
@@ -42,7 +43,28 @@ formato REAL dos arquivos de Relógio:
       Avulso, Copiar/Colar de parâmetros entre relógios;
    3. Tela provisória para "Blocos Musicais"/"Blocos Comerciais"
       (o editor visual fica para etapa futura — NECESSITA DE EXEMPLO
-      REAL).
+      REAL). [SUBSTITUÍDA na Etapa 4 — ver B.4]
+
+Na Etapa 4 o programa ganha o EDITOR VISUAL DOS BLOCOS (Mapas Comerciais
+e Grades Musicais), com o formato real verificado nos arquivos da
+instalação oficial:
+   1. src/blocos (núcleo, sem JUCE): blocos::BlockDocument interpreta o
+      arquivo real — "HH:MM COD, COD, ... " — preservando o separador, a
+      vírgula/espaço final e QUALQUER linha que não seja horário
+      (comentários, seções) verbatim; e blocos::CodeCatalogue monta a
+      Lista de Códigos a partir do folders.xml;
+   2. Painel de CÓDIGOS com no máximo DUAS FILEIRAS por padrão,
+      navegação (‹ ›) quando há mais códigos do que cabe, altura
+      redimensionável pelo usuário (1 a 8 fileiras) e uma cor por código;
+   3. Editor VISUAL de Mapas/Grades: cada horário em uma linha com chips
+      de CÓDIGO coloridos, código "grudado no mouse" (clicar no código
+      arma; o clique num horário adiciona; botão direito/ESC cancela),
+      Início/Intervalo/Avulso, Aplicar código aos selecionados,
+      Copiar/Colar de horários entre arquivos, botão "+" para criar um
+      CÓDIGO DE SESSÃO e lixeira que só remove códigos de sessão;
+   4. Correção do leitor do folders.xml: o arquivo real usa <Folder0>..
+      <Folder15> (não <Folder>), tem um bloco <Shared> que NÃO é código,
+      e o pareamento DBFId/Title por ordem do documento trocava os nomes.
 
 -----------------------------------------------------------------------
 B. O QUE ESTÁ IMPLEMENTADO E O QUE NÃO ESTÁ
@@ -194,19 +216,77 @@ B.3. Implementado (Etapa 3)
           sem perda); barra de status com caminho/estado;
   [x] Tela provisória "Blocos": Blocos Musicais/Comerciais têm atalho no
       menu Editar, mas o editor visual é FUTURO (placeholder);
+      [SUBSTITUÍDA pela Etapa 4 — ver B.4];
   [x] Salvar/Descartar do Arquivo também valem para o Relógio; o
       fechamento com alterações não salvas inclui as páginas do Relógio;
   [x] Núcleo do Relógio SEM JUCE: src/relogio (RelogioDocument +
       parametros) com round-trip exato e 85 testes; os testes do núcleo
       (Etapa 1/2) continuam verdes (183/183 — ver correção em J.11).
 
-B.4. NÃO implementado (fora de escopo)
+B.4. Implementado (Etapa 4 — 26/09/2026)
+  [x] FORMATO REAL dos Mapas/Grades lido dos arquivos da instalação
+      oficial (C:\Playlist_oficial\pgm):
+        Mapa.txt   -> 00:27 VHAB, COMER, COMER, COMER, COMER, COMER, VHAB,
+        GRADE.txt  -> 00:00 INT, NAC, VHPAS, INT, NAC, VHPAS, ...
+      Ou seja: horário, espaço, códigos separados por ", " e a LINHA
+      TERMINANDO em ", " depois do último código. Não há parênteses,
+      colchetes, nome ou valor — o código gravado é o DBFId da Lista de
+      Códigos. Os códigos REPETIDOS são normais (COMER cinco vezes seguidas
+      no Mapa real) e são preservados na ordem.
+  [x] Núcleo SEM JUCE: src/blocos/BlockDocument (parse/serialização com
+      round-trip exato) e src/blocos/CodeCatalogue (Lista de Códigos +
+      códigos de sessão) — 96 testes (ProgMasterBlocosTests).
+  [x] Painel de CÓDIGOS (src/app/CodePanel):
+        - no máximo DUAS FILEIRAS por padrão;
+        - navegação (‹ ›) quando os códigos não cabem — o conjunto
+          completo continua acessível, só a exibição avança;
+        - altura redimensionável arrastando a borda inferior (1 a 8
+          fileiras);
+        - uma COR por código, determinística pelo índice no catálogo; a
+          mesma cor é usada no painel e no chip dentro do horário;
+        - botão "+" cria um CÓDIGO DE SESSÃO (código + nome). Ele NÃO é
+          gravado no folders.xml (ver K.8);
+        - botão de lixeira remove SOMENTE códigos de sessão; códigos do
+          folders.xml nunca são removidos.
+  [x] Editor VISUAL de Mapas/Grades (src/app/BlockEditor):
+        - cada horário (HH:MM) em uma linha; os códigos viram CHIPS
+          coloridos; o trecho final preservado da linha fica em cinza;
+        - código "GRUDADO no mouse": clicar num código ARMA; um chip
+          fantasma segue o cursor e o clique num horário o adiciona,
+          mantendo-o armado (cancelar: clicar no mesmo código, botão
+          direito ou ESC);
+        - horários: campo HH:MM + OK (Avulso) e "Preencher Horários"
+          (Início + Intervalo), como no Relógio;
+        - "Aplicar" envia o código do seletor a TODOS os horários
+          selecionados; "Remover" pergunta Horários ou Códigos;
+        - Copiar/Colar (Ctrl+C/Ctrl+V) de horários + códigos entre os
+          arquivos (área de transferência compartilhada);
+        - clique direito num chip remove o código daquele horário.
+  [x] Guia "Blocos" (src/app/BlockEditorTab) substitui a tela
+      provisória: sub-aba por arquivo com a MESMA resolução do editor
+      textual (Único = Mapa.txt/Grade.txt; Semanal = MapaSeg..MapaDom /
+      GradeSeg..GradeDom, conforme o playlist.ini), modos Visual|Texto
+      sobre o MESMO documento em memória, rodapé com caminho, estado
+      ("Alterações não salvas", arquivo inexistente) e
+      [Visual][Texto][Descartar][Salvar].
+  [x] Salvar/Descartar do menu Arquivo e o aviso de fechamento passou a
+      considerar as páginas de Blocos.
+  [x] CORREÇÃO do leitor da Lista de Códigos (src/playlist/FoldersXml.cpp):
+      o arquivo real usa <Folder0>..<Folder15> e NÃO <Folder>; o bloco
+      <Shared> (pastas compartilhadas) não é código; e o DBFId vinha
+      pareado com o Title de outro registro. Agora o nome do elemento
+      "<Folder>" seguido de dígitos é reconhecido, o <Shared> é ignorado
+      e o par sai do mesmo registro — 29 testes (ProgMasterPlaylistTests).
+  [x] "Avançado" > Mapa Comercial / Grades Musicais continua disponível
+      para edição textual direta (mesmos arquivos).
+
+B.5. NÃO implementado (fora de escopo)
   [ ] Escrita de folders.xml (sempre somente leitura, por decisão);
+  [ ] Persistência das CORES dos códigos e dos códigos de sessão
+      (ver K.8 — A DEFINIR);
   [ ] Backup completo da instalação;
   [ ] Suíte de testes GUI automatizada (validação manual/smoke);
-  [ ] Quaisquer regras de programação além das seções lidas;
-  [ ] Editor VISUAL de Grades/Mapas e dos Blocos (tela provisória)
-      — continua textual em "Avançado".
+  [ ] Quaisquer regras de programação além das seções lidas.
 
 -----------------------------------------------------------------------
 C. METODOLOGIA E DECISÕES TÉCNICAS
@@ -289,12 +369,24 @@ C:\Users\Usuario\Documents\Config-alpha1\
    │  ├─ PlaylistFileLocator.h/.cpp    localiza arquivos por escopo
    │  ├─ ReadingConfiguration.h/.cpp   interpretação + validadores afiliadas
    │  └─ tests\RulesTests.cpp          116 testes (sem JUCE)
-   ├─ app\                   UI JUCE (Etapa 2)
+   ├─ relogio\               NÚCLEO Etapa 3 — modelo dos Relógios (sem JUCE)
+   │  ├─ RelogioDocument.h/.cpp        horários + parâmetros, round-trip
+   │  └─ tests\RelogioTests.cpp        102 testes
+   ├─ blocos\                NÚCLEO Etapa 4 — Mapas e Grades (sem JUCE)
+   │  ├─ BlockDocument.h/.cpp          horários + códigos, round-trip
+   │  ├─ CodeCatalogue.h/.cpp          Lista de Códigos + códigos de sessão
+   │  └─ tests\BlockTests.cpp          96 testes
+   ├─ app\                   UI JUCE (Etapas 2/3/4)
    │  ├─ ProgMasterApplication.h/.cpp  JUCEApplication + START_JUCE_APPLICATION
    │  ├─ MainWindow.h/.cpp             DocumentWindow + MenuBarModel
    │  ├─ ConfiguratorTab.h/.cpp        guia Configuração (cartões + afiliadas)
    │  ├─ EditorTab.h/.cpp              guia Editor (bloco de notas)
    │  ├─ CodesTab.h/.cpp               guia Códigos (TableListBox folders.xml)
+   │  ├─ RelogioEditorTab.h/.cpp       guia Relógio (Visual | Texto)
+   │  ├─ RelogioEditor.h/.cpp          editor visual dos Relógios
+   │  ├─ BlockEditorTab.h/.cpp         guia Blocos (Visual | Texto)
+   │  ├─ BlockEditor.h/.cpp            editor visual de Mapas/Grades
+   │  ├─ CodePanel.h/.cpp              painel de Códigos (2 fileiras, ‹ ›, +)
    │  ├─ LocatePlaylistDialog.h/.cpp   diálogo modal "Procurar Playlist.exe"
    │  ├─ PlaylistConfigController.h/.cpp  fonte única em memória do ini
    │  └─ JuceHelpers.h                 conversão std::wstring <-> juce::String
@@ -348,13 +440,19 @@ E.3. app\PlaylistConfigController
 E.4. app\MainWindow e guias
   - Menu "Arquivo": Configuração de pastas, Lista de IDs (guia
     Códigos), Trocar localização, Salvar, Descartar alterações, Sair.
-  - Menu "Editar": Programação, Mapa Comercial, Grades Musicais,
-    Relógio Comercial, Relógio Musical.
+  - Menu "Editar": Programação, Blocos Musicais, Blocos Comerciais,
+    Relógio Musical, Relógio Comercial (todos VISUAIS).
+  - Menu "Avançado": Programação, Mapa Comercial, Grades Musicais,
+    Relógio Comercial, Relógio Musical (todos TEXTUAIS).
   - Guia Editor: editor mono-espaçado com Salvar/Desfazer/Refazer;
     o playlist.ini usa o MESMO documento do controlador.
   - Guia Configuração: cartões (ver C.4) + "Visualizar como texto" abre
     o playlist.ini no Bloco de Notas do Windows (grava antes, relê ao
     voltar).
+  - Guia Relógio: sub-abas por arquivo de relógio, cada uma em Visual
+    ou Texto sobre o mesmo documento em memória.
+  - Guia Blocos: idem para Mapas/Grades, com o painel de Códigos no
+    topo (ver E.7).
   - Guia Códigos: TableListBox com os DBFId do folders.xml (read-only).
   - Fechamento: se sujo, pergunta Salvar/Descartar/Cancelar
     (MessageBoxOptions + showAsync; 0=Salvar, 1=Descartar, 2=Cancelar).
@@ -367,9 +465,38 @@ E.6. Core mantido (Etapa 1)
   - TextFileIO (detecção/reescrita de codificação, gravação atômica),
     Settings (config.txt, migração %APPDATA%), Log, PlaylistLocator,
     PlaylistInstallation (raiz em "pgm", busca flexível de
-    mapas/grades), FoldersXml (somente leitura, atributos/namespace,
-    fallback de pareamento) — detalhes completos na versão antiga deste
-    arquivo (git) e em ARQUITETURA_DO_CODIGO.txt.
+    mapas/grades), FoldersXml (somente leitura) — detalhes completos na
+    versão antiga deste arquivo (git) e em ARQUITETURA_DO_CODIGO.txt.
+  - CORREÇÃO na Etapa 4 em FoldersXml: o arquivo real traz
+    <Folder0>..<Folder15> (não <Folder>), tem um <Shared> com pastas
+    compartilhadas que NÃO são códigos, e o DBFId era pareado com o
+    Title de outro registro (por ordem do documento). Agora o nome
+    "<Folder>" seguido de dígitos é reconhecido, o <Shared> é ignorado
+    e o par sai do MESMO registro.
+
+E.7. blocos\ (núcleo) e app\CodePanel + app\BlockEditor (interface)
+  - blocos\BlockDocument: uma linha do arquivo é um Horário quando
+    começa com HH:MM válido; senão é uma LINHA CRUA preservada
+    verbatim. Do Horário guardam-se time, o separador entre o horário e
+    o primeiro código, os códigos na ordem (repetidos são normais) e o
+    TRECHO FINAL (a vírgula/espaço final do formato real). text()
+    remontando esses campos devolve o arquivo byte a byte igual — foi o
+    que permitiu validar o round-trip contra Mapa.txt (48 horários,
+    336 códigos) e GRADE.txt (48 horários, 672 códigos) reais.
+  - blocos\CodeCatalogue: os códigos vêm do folders.xml (leitura, via
+    FoldersXml) e os criados pelo usuário viram CÓDIGOS DE SESSÃO,
+    que existem só enquanto o programa estiver aberto (ver K.8).
+  - app\CodePanel: botões coloridos (uma cor por índice no catálogo),
+    DUAS FILEIRAS por padrão, navegação ‹ › quando há mais códigos do
+    que cabe, altura redimensionável arrastando a borda inferior,
+    botão "+" (novo código de sessão) e lixeira (só códigos de sessão).
+  - app\BlockEditor: linhas de horário com chips de código, código
+    "grudado no mouse", horários Avulso/Preencher, Aplicar aos
+    selecionados, Remover (Horários ou Códigos), Copiar/Colar.
+  - app\BlockEditorTab: sub-aba por arquivo usando a MESMA resolução do
+    EditorTab (readScope + Weekly ? MapaSeg..MapaDom / GradeSeg..GradeDom
+    : Mapa.txt / Grade.txt), modos Visual|Texto e rodapé com caminho,
+    estado e [Visual][Texto][Descartar][Salvar].
 
 -----------------------------------------------------------------------
 F. FLUXO DA APLICAÇÃO
@@ -497,6 +624,41 @@ J.11. Etapa 3 (26/09/2026) — 268 testes verdes:
   - Build Release limpo (/W4 sem warning novo) para ProgMaster,
     ProgMasterCoreTests e ProgMasterRelogioTests.
 
+J.12. Etapa 4 (26/09/2026) — 410 testes verdes:
+  - ProgMasterCoreTests    183/183 (Etapa 2, sem regressão)
+  - ProgMasterRelogioTests 102/102 (Etapa 3, sem regressão)
+  - ProgMasterBlocosTests   96/96 (novo)
+  - ProgMasterPlaylistTests 29/29 (novo)
+  - Núcleo dos Blocos (src/blocos), 96 testes cobrindo:
+      * o formato REAL (Mapa "00:27 VHAB, COMER, ... VHAB, " com 7
+        códigos e vírgula final; Grade com 11 códigos) — round-trip
+        byte a byte igual;
+      * códigos REPETIDOS e ordem preservados (o Mapa real repete COMER
+        cinco vezes na mesma linha);
+      * horário sem códigos ("00:00 ") e sem separador ("00:00");
+      * linhas cruas (comentário, linha em branco, [SEÇÃO], texto solto)
+        preservadas verbatim;
+      * adicionar/remover código, substituir (copar/colar), adicionar
+        horário avulso, "Preencher" e remover linha;
+      * fim de linha LF e CRLF preservados;
+      * o exemplo numérico do manual oficial ("06:00 VH, 55, 23, ...")
+        também faz round-trip;
+      * catálogo: DBFId do folders.xml vira código (DBFId repetido vira
+        um botão só), código de sessão criado/recusado (vazio, com
+        espaço, longo, repetido), código do arquivo NÃO é removível, e
+        CONFIRMADO POR BYTES que o folders.xml não foi modificado.
+  - Leitor da Lista de Códigos, 29 testes: <Folder0>..<FolderN> lidos,
+    <Shared> ignorado, DBFId e Title do MESMO registro, e o formato
+    legado <Folder> sem dígitos ainda aceito.
+  - Validação EXTRA contra a instalação real (fora da suíte, executada
+    uma vez): carregar Mapa.txt e GRADE.txt pelo mesmo caminho da
+    aplicação (PlaylistIni -> BlockDocument) e regravar devolveu
+    ARQUIVO IDÊNTICO AO DO DISCO — Mapa.txt 2638 bytes (48 horários,
+    336 códigos) e GRADE.txt 4126 bytes (48 horários, 672 códigos).
+    Confirma que a codificação e o parser não alteram nada.
+  - Build Release limpo /W4 para ProgMaster e os quatro executáveis de
+    teste.
+
 -----------------------------------------------------------------------
 K. PROBLEMAS CONHECIDOS / LIMITAÇÕES
 -----------------------------------------------------------------------
@@ -525,17 +687,49 @@ K.7. Acentos na INTERFACE (causa raiz da rodada atual):
       O problema é de CODIFICAÇÃO, não de acentos do sistema:
       corrigido convertendo todos os literais acentuados ao
       usuário para WIDE (L"...") que passam por `CharPointer_UTF16`.
-      Partes da UI já apareciam certas (editor, cartões) porque
-      usam `jstr(std::wstring)`.
+       Partes da UI já apareciam certas (editor, cartões) porque
+       usam `jstr(std::wstring)`.
+K.8. CÓDIGOS DE SESSÃO e CORES (Etapa 4) — A DEFINIR pelo cliente:
+       - O botão "+" do painel de Códigos cria um código que só existe
+         enquanto o programa estiver aberto: ele NÃO é gravado no
+         folders.xml e some ao fechar. Consequência prática: se o usuário
+         salvar um Mapa/Grade usando um código de sessão, o arquivo passa
+         a citar um código que não existe mais na Lista de Códigos da
+         instalação. O rodapé sinaliza "código de sessão" no tooltip, mas
+         ainda NÃO há aviso ao salvar.
+       - A COR de cada código é derivada do índice no catálogo, não é
+         editável e não é persistida: reabrir o programa pode trocar as
+         cores se a Lista de Códigos mudar. A paleta (12 cores) e o
+         contraste preto-sobre-cor foram escolhidos nesta etapa.
+       - Escrever no folders.xml e guardar as cores em config.txt estão
+         FORA do escopo até o cliente decidir o formato.
+K.9. FIDELIDADE DO TEXTO (Blocos/Mapas/Grades): o round-trip é exato
+       para o formato real e para o exemplo do manual oficial, mas o
+       separador ENTRE códigos é normalizado para ", " (o que o Playlist
+       sempre gera). Arquivos escritos por terceiros com "VHAB,COMER"
+       (sem espaço) voltam com ", ". O separador do HORÁRIO, a vírgula/
+       espaço final, a ordem, os códigos repetidos e as linhas que não são
+       horário são preservados exatamente.
+K.10. Linhas que NÃO são horário (comentários, [SEÇÃO], linhas em
+       branco) são preservadas verbatim no arquivo, mas NÃO aparecem no
+       editor VISUAL: só são visíveis/editáveis no modo Texto. O editor
+       visual não tenta interpretá-las (não inventa sintaxe).
+K.11. O painel de Códigos mostra DUAS fileiras por padrão. Com muitos
+       códigos (a Lista real tem dezenas) a navegação ‹ › é necessária —
+       o conjunto continua completo, muda só a página exibida.
 
 -----------------------------------------------------------------------
 L. PRÓXIMA ETAPA (A DEFINIR — aguarda especificação do cliente)
 ------------------------------------------------------------------------
-Temas futuros: editor VISUAL de Grades/Mapas (hoje textual em
-"Avançado") e dos Blocos Musicais/Comerciais (hoje tela provisória)
-— ambos NECESSITAM DE EXEMPLO REAL; gravação/edição assistida por
-regras do Playlist, backup completo, identidade visual final, testes
-GUI automatizados.
+Temas futuros:
+  - Definir a PERSISTÊNCIA dos códigos criados pelo "+" e das cores dos
+    códigos (K.8) — inclusive o que fazer quando um arquivo salvo cita um
+    código de sessão que não existe mais;
+  - Aviso visual no editor quando um horário usa um código desconhecido
+    (hoje aparece sem cor, em cinza) e opção de corrigi-lo;
+  - Gravação/edição assistida por regras do Playlist, backup completo,
+    identidade visual final e testes GUI automatizados (K.2);
+  - Ampliar o editor visual para os demais blocos, se o cliente pedir.
 
 -----------------------------------------------------------------------
 O. REBRANDING (18/09/2026) — mantido
