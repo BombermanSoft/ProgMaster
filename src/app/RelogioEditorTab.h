@@ -52,25 +52,27 @@ public:
 
     RelogioFilePage(RelogioEditorTab& host, std::filesystem::path path,
                     std::wstring displayName,
-                    std::vector<relogio::Param>& clipboard);
+                    std::vector<ClipEntry>& clipboard);
     ~RelogioFilePage() override;
 
     // Carrega do disco (arquivo inexistente começa vazio).
     void reload();
     bool save(std::wstring& userMessage, std::string& technicalError);
 
+// Alterna o modo de edição da página (chamado pelos ícones do tab).
+    void setMode(Mode mode);
+
     bool isDirty() const { return m_dirty; }
     bool hasFileOnDisk() const { return m_hasFileOnDisk; }
     const std::wstring& displayName() const { return m_displayName; }
     std::wstring pathString() const { return m_service.path().wstring(); }
+    Mode mode() const { return m_mode; }
 
     void paint(juce::Graphics& g) override;
     void resized() override;
 
 private:
-    void setMode(Mode mode);
     void onDocChanged();
-    void updateModeButtons();
     void reloadDoNotNotify(std::wstring& text);
 
     RelogioEditorTab& m_host;
@@ -85,12 +87,6 @@ private:
     RelogioEditor m_editor;
     juce::TextEditor m_textEditor;
     bool m_updatingText = false;
-
-    juce::TextButton m_visualBtn{ L"Visual" };
-    juce::TextButton m_textBtn{ L"Texto" };
-    juce::TextButton m_saveBtn{ L"Salvar" };
-    juce::TextButton m_discardBtn{ L"Descartar alterações" };
-    juce::Label m_pathLabel;
 };
 
 // Tab "Relógio": editor VISUAL (e textual) dos arquivos de relógio, com uma
@@ -134,6 +130,11 @@ private:
     RelogioFilePage* currentPage() const;
     void updateStatus();
     void setStatus(const std::wstring& text);
+    // Troca o modo da página ativa (ícones do topo) e atualiza o quadradinho.
+    void setCurrentPageMode(RelogioFilePage::Mode mode);
+    void updateModeIcons();
+    void saveCurrentPage();
+    void discardCurrentPage();
 
     app::PlaylistConfigController& m_controller;
     PlaylistInstallation& m_installation;
@@ -142,11 +143,19 @@ private:
     readconf::ConfigScope m_current = readconf::ConfigScope::RelogioMusical;
 
     // Área de transferência de parâmetros COMPARTILHADA entre as páginas.
-    std::vector<relogio::Param> m_paramsClipboard;
+    std::vector<ClipEntry> m_paramsClipboard;
 
     RelogioEditorTabs m_fileTabs;
+    // TUDO na MESMA fileira do rodapé (junto com o caminho do arquivo):
+    // Visual/Texto e Descartar/Salvar juntos no canto direito, separados entre
+    // si apenas pela barra (desenhada no paint).
+    juce::TextButton m_visualBtn{ L"Visual" };
+    juce::TextButton m_textBtn{ L"Texto" };
+    juce::TextButton m_saveBtn{ L"Salvar" };
+    juce::TextButton m_discardBtn{ L"Descartar" };
     juce::Label m_fileLabel;
     juce::Label m_statusLabel;
+    juce::Rectangle<int> m_dividerBar;
 };
 
 } // namespace app

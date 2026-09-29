@@ -1,5 +1,6 @@
 #include "relogio/RelogioDocument.h"
 
+#include <algorithm>
 #include <cwctype>
 
 namespace relogio {
@@ -46,6 +47,15 @@ bool paramNameEquals(const std::wstring& s, const wchar_t* canon)
         ++q;
     }
     return *q == L'\0';
+}
+
+// Parte interna do parêntese: "FIXO" ou "ID=Exemplo" (sem os parênteses).
+std::wstring paramInner(const Param& p)
+{
+    if (paramHasValue(p.kind) && !p.value.empty()) {
+        return p.name + L"=" + p.value;
+    }
+    return p.name;
 }
 
 } // namespace
@@ -127,18 +137,12 @@ bool RelogioDocument::parseParamToken(const std::wstring& token, Param& out)
     out.kind = kind;
     out.name = canonicalName(kind);
     out.value = value;
-    out.token.clear();
     return true;
 }
 
 std::wstring RelogioDocument::paramText(const Param& p)
 {
-    std::wstring s = L"(" + p.name;
-    if (paramHasValue(p.kind) && !p.value.empty()) {
-        s += L"=" + p.value;
-    }
-    s += L")";
-    return s;
+    return L"(" + paramInner(p) + L")";
 }
 
 // Interpreta uma linha: devolve o horário estruturado se a linha começa com
@@ -187,9 +191,9 @@ void RelogioDocument::setText(const std::wstring& text)
             const std::wstring rest = line.substr(5);
             size_t i = 0;
             while (i < rest.size()) {
-                // O próximo parâmetro é: (espaços) seguidos de "(" ... ")" com
-                // conteúdo reconhecido. Qualquer outro texto encerra a zona de
-                // parâmetros e vira conteúdo preservado.
+                // O próximo grupo é: (espaços) seguidos de "(" ... ")" cujo
+                // conteúdo é 100% parâmetros reconhecidos. Aceita tanto o
+                // formato canônico "(FIXO, SAT)" quanto o antigo "(FIXO) (SAT)".
                 size_t wsEnd = i;
                 while (wsEnd < rest.size() && isWs(rest[wsEnd])) {
                     ++wsEnd;
@@ -201,12 +205,34 @@ void RelogioDocument::setText(const std::wstring& text)
                 if (close == std::wstring::npos) {
                     break;
                 }
-                Param p;
-                if (!parseParamToken(rest.substr(wsEnd + 1, close - wsEnd - 1), p)) {
-                    break;
+                const std::wstring inner =
+                    rest.substr(wsEnd + 1, close - wsEnd - 1);
+
+                std::vector<Param> group;
+                bool ok = true;
+                size_t partStart = 0;
+                while (partStart <= inner.size()) {
+                    const size_t comma = inner.find(L',', partStart);
+                    const size_t partEnd =
+                        (comma == std::wstring::npos) ? inner.size() : comma;
+                    Param p;
+                    if (!parseParamToken(
+                            inner.substr(partStart, partEnd - partStart), p)) {
+                        ok = false;
+                        break;
+                    }
+                    group.push_back(std::move(p));
+                    if (comma == std::wstring::npos) {
+                        break;
+                    }
+                    partStart = comma + 1;
                 }
-                p.token = rest.substr(i, close - i + 1);
-                h.params.push_back(std::move(p));
+                if (!ok) {
+                    break; // grupo não é 100% parâmetro -> conteúdo preservado
+                }
+                for (Param& p : group) {
+                    h.params.push_back(std::move(p));
+                }
                 i = close + 1;
             }
             h.trailing = rest.substr(i);
@@ -231,8 +257,17 @@ std::wstring RelogioDocument::text() const
         first = false;
         if (l.kind == Line::Kind::Horario) {
             out += l.horario.time;
-            for (const Param& p : l.horario.params) {
-                out += p.token;
+            // Um só grupo entre parênteses, parâmetros separados por vírgula:
+            // (FIXO, SAT) — o formato real do Playlist.
+            if (!l.horario.params.empty()) {
+                out += L" (";
+                for (size_t k = 0; k < l.horario.params.size(); ++k) {
+                    if (k != 0) {
+                        out += L", ";
+                    }
+                    out += paramInner(l.horario.params[k]);
+                }
+                out += L")";
             }
             out += l.horario.trailing;
         } else {
@@ -264,22 +299,27 @@ int RelogioDocument::addTime(const std::wstring& hhmm)
     return static_cast<int>(idx);
 }
 
-void RelogioDocument::addParam(int lineIndex, ParamKind kind,
+bool RelogioDocument::addParam(int lineIndex, ParamKind kind,
                                const std::wstring& value)
 {
     if (lineIndex < 0 || static_cast<size_t>(lineIndex) >= m_lines.size()) {
-        return;
+        return false;
     }
     Line& l = m_lines[static_cast<size_t>(lineIndex)];
     if (l.kind != Line::Kind::Horario) {
-        return;
+        return false;
+    }
+    for (const Param& existing : l.horario.params) {
+        if (existing.kind == kind) {
+            return false; // o mesmo parâmetro não entra duas vezes
+        }
     }
     Param p;
     p.kind = kind;
     p.name = canonicalName(kind);
     p.value = paramHasValue(kind) ? value : std::wstring();
-    p.token = L" " + paramText(p);
     l.horario.params.push_back(std::move(p));
+    return true;
 }
 
 void RelogioDocument::removeParam(int lineIndex, int paramIndex)
@@ -307,7 +347,19 @@ void RelogioDocument::replaceParams(int lineIndex, const std::vector<Param>& par
     if (l.kind != Line::Kind::Horario) {
         return;
     }
-    l.horario.params = params;
+    l.horario.params.clear();
+    for (const Param& p : params) {
+        bool duplicate = false;
+        for (const Param& q : l.horario.params) {
+            if (q.kind == p.kind) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (!duplicate) {
+            l.horario.params.push_back(p);
+        }
+    }
 }
 
 bool RelogioDocument::removeLine(int lineIndex)
@@ -317,6 +369,47 @@ bool RelogioDocument::removeLine(int lineIndex)
     }
     m_lines.erase(m_lines.begin() + lineIndex);
     return true;
+}
+
+void RelogioDocument::reschedule(const std::vector<std::wstring>& hhmmList)
+{
+    // Mantém apenas as linhas cruas (comentários, em branco, desconhecidas) na
+    // ordem original e descarta os horários atuais.
+    std::vector<Line> kept;
+    for (Line& l : m_lines) {
+        if (l.kind == Line::Kind::Raw) {
+            kept.push_back(std::move(l));
+        }
+    }
+
+    std::vector<Line> times;
+    for (const std::wstring& h : hhmmList) {
+        const int minute = parseTime(h);
+        if (minute < 0) {
+            continue;
+        }
+        bool duplicate = false;
+        for (const Line& t : times) {
+            if (parseTime(t.horario.time) == minute) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (duplicate) {
+            continue;
+        }
+        Line l;
+        l.kind = Line::Kind::Horario;
+        l.horario.time = formatTime(minute);
+        times.push_back(std::move(l));
+    }
+    std::sort(times.begin(), times.end(), [](const Line& a, const Line& b) {
+        return parseTime(a.horario.time) < parseTime(b.horario.time);
+    });
+
+    m_lines.clear();
+    m_lines.insert(m_lines.end(), kept.begin(), kept.end());
+    m_lines.insert(m_lines.end(), times.begin(), times.end());
 }
 
 void RelogioDocument::replaceFrom(const RelogioDocument& other)

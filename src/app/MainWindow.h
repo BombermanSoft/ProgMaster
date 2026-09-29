@@ -98,6 +98,9 @@ private:
     private:
         juce::TabbedComponent& m_tabs;
         juce::Label& m_status;
+        // Janela de tooltips: habilitar o texto explicativo ao passar o mouse
+        // sobre os controles (setTooltip).
+        juce::TooltipWindow m_tooltips;
     };
 
     void refreshFromLocator();

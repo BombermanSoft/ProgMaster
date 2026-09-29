@@ -23,7 +23,7 @@ namespace app {
 RelogioFilePage::RelogioFilePage(RelogioEditorTab& host,
                                  std::filesystem::path path,
                                  std::wstring displayName,
-                                 std::vector<relogio::Param>& clipboard)
+                                 std::vector<ClipEntry>& clipboard)
     : m_host(host), m_service(std::move(path)),
       m_displayName(std::move(displayName)), m_editor(m_doc, clipboard)
 {
@@ -45,34 +45,8 @@ RelogioFilePage::RelogioFilePage(RelogioEditorTab& host,
     };
     addAndMakeVisible(m_textEditor);
 
-    // Troca de modo: Visual e Texto são os DOIS lados do mesmo documento.
-    m_visualBtn.setClickingTogglesState(true);
-    m_visualBtn.setRadioGroupId(200);
-    m_visualBtn.onClick = [this] { setMode(Mode::Visual); };
-    m_textBtn.setClickingTogglesState(true);
-    m_textBtn.setRadioGroupId(200);
-    m_textBtn.onClick = [this] { setMode(Mode::Texto); };
-    m_saveBtn.onClick = [this] { m_host.saveCurrentFile(); };
-    m_discardBtn.onClick = [this] {
-        reload();
-        m_host.onPageChanged();
-    };
-    for (juce::TextButton* btn :
-         { &m_visualBtn, &m_textBtn, &m_saveBtn, &m_discardBtn }) {
-        addAndMakeVisible(btn);
-    }
-    m_saveBtn.setTooltip(L"Salvar este arquivo de relógio.");
-    m_discardBtn.setTooltip(L"Descartar alterações deste relógio (recarregar do disco).");
-
-    m_pathLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    m_pathLabel.setFont(juce::Font(juce::FontOptions(12.0f)));
-    m_pathLabel.setJustificationType(juce::Justification::centredRight);
-    m_pathLabel.setTooltip(jstr(pathString()));
-    addAndMakeVisible(m_pathLabel);
-
     setMode(Mode::Visual);
     reload();
-    updateModeButtons();
 }
 
 RelogioFilePage::~RelogioFilePage() = default;
@@ -118,20 +92,12 @@ void RelogioFilePage::setMode(Mode mode)
         m_textEditor.setText(app::jstr(m_doc.text()), false);
         m_updatingText = false;
     }
-    updateModeButtons();
 }
 
 void RelogioFilePage::onDocChanged()
 {
     m_dirty = true;
     m_host.onPageChanged();
-}
-
-void RelogioFilePage::updateModeButtons()
-{
-    m_visualBtn.setToggleState(m_mode == Mode::Visual, juce::dontSendNotification);
-    m_textBtn.setToggleState(m_mode == Mode::Texto, juce::dontSendNotification);
-    m_pathLabel.setText(jstr(pathString()), juce::dontSendNotification);
 }
 
 void RelogioFilePage::paint(juce::Graphics& g)
@@ -141,29 +107,10 @@ void RelogioFilePage::paint(juce::Graphics& g)
 
 void RelogioFilePage::resized()
 {
-    const int margin = 6;
-    const int topH = 26;
-    const auto area = getLocalBounds();
-
-    const int y = area.getY() + 2;
-    int x = area.getX() + margin;
-    const auto step = [&x, &y, &topH, margin](juce::Component& c, int w, int gap) {
-        c.setBounds(x, y, w, topH);
-        x += w + gap;
-    };
-    step(m_visualBtn, 64, 3);
-    step(m_textBtn, 60, 12);
-    step(m_saveBtn, 70, 3);
-    step(m_discardBtn, 130, 12);
-    m_pathLabel.setBounds(x, y, area.getRight() - x - margin, topH);
-    m_pathLabel.setJustificationType(juce::Justification::centredLeft);
-
-    const int contentTop = y + topH + 4;
-    const juce::Rectangle<int> content(
-        area.getX(), contentTop, area.getWidth(),
-        juce::jmax(0, area.getBottom() - contentTop));
-    m_editor.setBounds(content);
-    m_textEditor.setBounds(content);
+    // A página é só o conteúdo: os ícones de modo ficam no topo do tab e o
+    // caminho + Salvar/Descartar ficam no rodapé do tab.
+    m_editor.setBounds(getLocalBounds());
+    m_textEditor.setBounds(getLocalBounds());
 }
 
 // ============================================================================
@@ -177,6 +124,31 @@ RelogioEditorTab::RelogioEditorTab(
 {
     m_fileTabs.onTabChanged = [this] { updateStatus(); };
     addAndMakeVisible(m_fileTabs);
+
+    // Botões de modo (Visual/Texto) — compartilhados, na fileira do rodapé.
+    m_visualBtn.setClickingTogglesState(true);
+    m_visualBtn.setRadioGroupId(200);
+    m_visualBtn.onClick = [this] {
+        setCurrentPageMode(RelogioFilePage::Mode::Visual);
+    };
+    m_textBtn.setClickingTogglesState(true);
+    m_textBtn.setRadioGroupId(200);
+    m_textBtn.onClick = [this] {
+        setCurrentPageMode(RelogioFilePage::Mode::Texto);
+    };
+    m_visualBtn.setTooltip(L"Edição Visual");
+    m_textBtn.setTooltip(L"Edição Textual");
+    addAndMakeVisible(m_visualBtn);
+    addAndMakeVisible(m_textBtn);
+
+    // Salvar / Descartar alterações — na linha do rodapé (com o caminho).
+    m_saveBtn.onClick = [this] { saveCurrentPage(); };
+    m_discardBtn.onClick = [this] { discardCurrentPage(); };
+    m_saveBtn.setTooltip(L"Salvar este arquivo de relógio.");
+    m_discardBtn.setTooltip(
+        L"Descartar alterações deste relógio (recarregar do disco).");
+    addAndMakeVisible(m_saveBtn);
+    addAndMakeVisible(m_discardBtn);
 
     m_fileLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
     m_fileLabel.setFont(juce::Font(juce::FontOptions(12.0f)));
@@ -317,6 +289,7 @@ void RelogioEditorTab::updateStatus()
         }
     }
     m_statusLabel.setText(app::jstr(status), juce::dontSendNotification);
+    updateModeIcons();
 }
 
 void RelogioEditorTab::setStatus(const std::wstring& text)
@@ -324,29 +297,87 @@ void RelogioEditorTab::setStatus(const std::wstring& text)
     m_statusLabel.setText(app::jstr(text), juce::dontSendNotification);
 }
 
+void RelogioEditorTab::setCurrentPageMode(RelogioFilePage::Mode mode)
+{
+    if (RelogioFilePage* page = currentPage()) {
+        page->setMode(mode);
+    }
+    updateModeIcons();
+}
+
+void RelogioEditorTab::updateModeIcons()
+{
+    const RelogioFilePage* page = currentPage();
+    const bool visual = (page == nullptr) ||
+                        page->mode() == RelogioFilePage::Mode::Visual;
+    m_visualBtn.setToggleState(visual, juce::dontSendNotification);
+    m_textBtn.setToggleState(!visual, juce::dontSendNotification);
+}
+
+void RelogioEditorTab::saveCurrentPage()
+{
+    saveCurrentFile();
+}
+
+void RelogioEditorTab::discardCurrentPage()
+{
+    if (RelogioFilePage* page = currentPage()) {
+        page->reload();
+        updateStatus();
+    }
+}
+
 void RelogioEditorTab::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(0xff2b2b2b));
+    if (!m_dividerBar.isEmpty()) {
+        g.setColour(juce::Colour(0xff555555));
+        g.fillRect(m_dividerBar);
+    }
 }
 
 void RelogioEditorTab::resized()
 {
     const int margin = 6;
-    const int bottomH = 22;
+    const int bottomH = 24;
     const auto area = getLocalBounds();
 
+    // Topo — só as abas de relógio (RelogioSeg, RelogioTer...).
     const int tabsTop = area.getY() + 2;
     const int tabsH = juce::jmax(0, area.getHeight() - 2 - bottomH - margin);
-    m_fileTabs.setBounds(area.getX() + margin, tabsTop, area.getWidth() - 2 * margin,
-                         tabsH);
+    m_fileTabs.setBounds(margin, tabsTop, area.getWidth() - 2 * margin, tabsH);
 
-    const int labelW = 300;
-    m_fileLabel.setBounds(area.getX() + margin,
-                          area.getBottom() - bottomH - margin,
-                          juce::jmax(0, area.getWidth() - 2 * margin - labelW),
+    // Rodapé — MESMA fileira do caminho do arquivo, tudo numa linha só:
+    //   <caminho...status> │ [Visual] [Texto] [Descartar] [Salvar]
+    const int bottomY = area.getBottom() - bottomH - margin;
+    const int gap = 6;
+
+    // Bloco de botões NO CANTO DIREITO, grupos separados só pela divisória.
+    const int visualW = 66;
+    const int textW = 60;
+    const int discardW = 88;
+    const int saveW = 62;
+    const int blockW = visualW + gap + textW + gap + discardW + gap + saveW;
+    int x = area.getRight() - margin - blockW;
+    m_visualBtn.setBounds(x, bottomY - 1, visualW, bottomH);
+    x += visualW + gap;
+    m_textBtn.setBounds(x, bottomY - 1, textW, bottomH);
+    x += textW + gap;
+    m_discardBtn.setBounds(x, bottomY - 1, discardW, bottomH);
+    x += discardW + gap;
+    m_saveBtn.setBounds(x, bottomY - 1, saveW, bottomH);
+
+    // Barra separando os botões do restante da linha.
+    const int divX = m_visualBtn.getX() - 10;
+    m_dividerBar.setBounds(divX, bottomY + 2, 2, bottomH - 4);
+
+    // Status antes da barra; caminho preenchendo o meio.
+    const int statusW = 300;
+    const int statusX = divX - gap - statusW;
+    m_statusLabel.setBounds(statusX, bottomY - 1, statusW, bottomH);
+    m_fileLabel.setBounds(area.getX() + margin, bottomY - 1,
+                          juce::jmax(0, statusX - gap - area.getX() - margin),
                           bottomH);
-    m_statusLabel.setBounds(m_fileLabel.getRight() + 6, m_fileLabel.getY(),
-                            labelW - 6, bottomH);
 }
 
 } // namespace app

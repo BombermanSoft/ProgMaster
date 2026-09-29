@@ -20,6 +20,7 @@ MainWindow::ContentPane::ContentPane(juce::TabbedComponent& tabs,
 {
     addAndMakeVisible(m_tabs);
     addAndMakeVisible(m_status);
+    addAndMakeVisible(m_tooltips);
     m_status.setColour(juce::Label::textColourId, juce::Colours::grey);
     // Fonte menor para o status caber na barra mesmo com caminhos longos
     // (antes, caminho grande cortava a informação do playlist.ini na tela).

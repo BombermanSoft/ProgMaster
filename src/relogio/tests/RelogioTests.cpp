@@ -174,6 +174,7 @@ void testModeloExample()
 
 void testMultipleParams()
 {
+    // Formato antigo (um grupo por parâmetro) continua sendo lido.
     RelogioDocument d;
     d.setText(L"07:30 (FIXO) (ID=Exemplo) conteudo\r\n");
     CHECK_MSG(d.lines()[0].horario.params.size() == 2, "2 parametros");
@@ -181,7 +182,19 @@ void testMultipleParams()
               "primeiro FIXO");
     CHECK_MSG(d.lines()[0].horario.params[1].kind == ParamKind::Id,
               "segundo ID");
-    CHECK_EQ(d.text(), L"07:30 (FIXO) (ID=Exemplo) conteudo\r\n");
+    // A serialização usa UM grupo com vírgulas: (FIXO, ID=Exemplo).
+    CHECK_EQ(d.text(), L"07:30 (FIXO, ID=Exemplo) conteudo\r\n");
+
+    // Formato canônico: vários parâmetros num único parêntese, com vírgulas.
+    RelogioDocument c;
+    c.setText(L"07:30 (SAT, DESCARTE, ID=Noticias) conteudo\r\n");
+    CHECK_MSG(c.lines()[0].horario.params.size() == 3, "3 parametros no grupo");
+    CHECK_MSG(c.lines()[0].horario.params[0].kind == ParamKind::Sat, "SAT");
+    CHECK_MSG(c.lines()[0].horario.params[1].kind == ParamKind::Descarte,
+              "DESCARTE");
+    CHECK_MSG(c.lines()[0].horario.params[2].kind == ParamKind::Id,
+              "ID depois de vírgula");
+    CHECK_EQ(c.text(), L"07:30 (SAT, DESCARTE, ID=Noticias) conteudo\r\n");
 }
 
 void testUnknownParenIsContent()
@@ -228,19 +241,29 @@ void testAddRemoveParams()
 {
     RelogioDocument d;
     d.setText(L"10:00\r\n");
-    d.addParam(0, ParamKind::Fixo, L"");
+    CHECK_MSG(d.addParam(0, ParamKind::Fixo, L""), "FIXO adicionado");
     CHECK_EQ(d.text(), L"10:00 (FIXO)\r\n");
     CHECK_MSG(d.lines()[0].horario.params.size() == 1, "1 parametro apos add");
+
+    // O mesmo parâmetro não pode ser adicionado duas vezes.
+    CHECK_MSG(!d.addParam(0, ParamKind::Fixo, L""), "FIXO duplicado recusado");
+    CHECK_MSG(d.lines()[0].horario.params.size() == 1, "ainda 1 parametro");
+    CHECK_EQ(d.text(), L"10:00 (FIXO)\r\n");
 
     d.removeParam(0, 0);
     CHECK_MSG(d.lines()[0].horario.params.empty(), "parametro removido");
     CHECK_EQ(d.text(), L"10:00\r\n");
 
-    d.addParam(0, ParamKind::Id, L"Exemplo");
+    CHECK_MSG(d.addParam(0, ParamKind::Id, L"Exemplo"), "ID adicionado");
     CHECK_EQ(d.text(), L"10:00 (ID=Exemplo)\r\n");
 
-    d.addParam(0, ParamKind::Dur, L"3:00");
-    CHECK_EQ(d.text(), L"10:00 (ID=Exemplo) (DUR=3:00)\r\n");
+    CHECK_MSG(d.addParam(0, ParamKind::Dur, L"3:00"), "DUR adicionado");
+    // Mais de um parâmetro: mesmo grupo, separados por vírgula.
+    CHECK_EQ(d.text(), L"10:00 (ID=Exemplo, DUR=3:00)\r\n");
+
+    // ID duplicado recusado mesmo com outro valor.
+    CHECK_MSG(!d.addParam(0, ParamKind::Id, L"Outro"), "ID duplicado recusado");
+    CHECK_EQ(d.text(), L"10:00 (ID=Exemplo, DUR=3:00)\r\n");
 }
 
 void testReplaceParams()
@@ -251,8 +274,15 @@ void testReplaceParams()
     RelogioDocument dst;
     dst.setText(L"06:00\r\n");
     dst.replaceParams(0, src.lines()[0].horario.params);
-    CHECK_EQ(dst.text(), L"06:00 (FIXO) (DUR=2:00)\r\n");
+    CHECK_EQ(dst.text(), L"06:00 (FIXO, DUR=2:00)\r\n");
     CHECK_MSG(dst.lines()[0].horario.params.size() == 2, "2 parametros copiados");
+
+    // Colar SUBSTITUI os parâmetros do destino (sem duplicar): o destino fica
+    // com exatamente o que estava na área de transferência.
+    RelogioDocument dst2;
+    dst2.setText(L"06:00 (FIXO)\r\n");
+    dst2.replaceParams(0, src.lines()[0].horario.params);
+    CHECK_EQ(dst2.text(), L"06:00 (FIXO, DUR=2:00)\r\n");
 }
 
 void testRemoveLine()
@@ -286,7 +316,22 @@ void testOrderOfParamsPreserved()
     CHECK_MSG(d.lines()[0].horario.params.size() == 3, "3 parametros");
     CHECK_MSG(d.lines()[0].horario.params[0].kind == ParamKind::Sat, "SAT");
     CHECK_MSG(d.lines()[0].horario.params[2].kind == ParamKind::Fixo, "FIXO");
-    CHECK_EQ(d.text(), L"08:00 (SAT) (LOCKED) (FIXO)\r\n");
+    CHECK_EQ(d.text(), L"08:00 (SAT, LOCKED, FIXO)\r\n");
+}
+
+void testReschedule()
+{
+    // "Preencher": mantém comentários/em branco, remove os horários antigos e
+    // insere a nova seqüência em ordem cronológica.
+    RelogioDocument d;
+    d.setText(L"# turno da manhã\r\n00:10\r\n00:40\r\n\r\n");
+    d.reschedule({ L"01:00", L"00:30", L"00:00" });
+    CHECK_EQ(d.text(), L"# turno da manhã\r\n\r\n00:00\r\n00:30\r\n01:00\r\n");
+    CHECK_MSG(countHorarios(d) == 3, "3 horarios apos preencher");
+
+    // Horários inválidos e repetidos são ignorados.
+    d.reschedule({ L"25:00", L"00:00", L"00:00", L"00:15" });
+    CHECK_EQ(d.text(), L"# turno da manhã\r\n\r\n00:00\r\n00:15\r\n");
 }
 
 } // namespace
@@ -311,6 +356,7 @@ int main()
     testRemoveLine();
     testReplaceFrom();
     testOrderOfParamsPreserved();
+    testReschedule();
 
     std::cout << "\n" << (g_checks - g_failures) << "/" << g_checks << " ok\n";
     if (g_failures != 0) {

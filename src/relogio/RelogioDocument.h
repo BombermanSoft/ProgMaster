@@ -17,18 +17,19 @@
 //
 //   00:02 (DUR=13:00) AB, LOC1, MUS1, VHP, ...
 //
-// Cada linha pode ter, DEPOIS do horário, parâmetros entre parênteses:
-//   (FIXO)  (DESCARTE)  (LOCAL)  (SAT)  (LOCKED)     <- sem valor
-//   (ID=Exemplo)  (DUR=3:00)                          <- com valor
-// O que vem depois dos parâmetros (conteúdo de programação do horário, ex.:
+// Cada linha pode ter, DEPOIS do horário, um grupo de parâmetros entre
+// parênteses, separados por vírgula (formato real do Playlist):
+//   (FIXO)  (SAT, DESCARTE)  (ID=Noticias, LOCKED)  <- parâmetros
+// Sem valor: FIXO DESCARTE LOCAL SAT LOCKED; com valor: (ID=valor) (DUR=valor).
+// A leitura TAMBÉM aceita o formato antigo (um grupo por parâmetro, ex.
+// "(FIXO) (SAT)"), mas a serialização NORMALIZA para o formato com vírgulas.
+// O que vem depois do grupo (conteúdo de programação do horário, ex.:
 // "AB, LOC1, MUS1...") é CONTEÚDO PRESERVADO: o editor não interpreta nem
 // apaga (item 43/44 do prompt).
 //
-// Fidelidade: cada linha guarda o texto ORIGINAL ("linha crua") para linhas
-// que não são horário, e para horários guarda a hora + os tokens de parâmetro
-// exatamente como escritos (incluindo o espaço que os precede) + o restante da
-// linha intacto. Nada é perdido ao serializar: linhas em branco, comentários
-// e linhas desconhecidas são preservados na ordem.
+// Fidelidade: linhas que não são horário (em branco, comentários, seções
+// desconhecidas) são guardadas VERBATIM e preservadas na ordem. Parâmetros
+// nunca se repetem num mesmo horário (o editor evita duplicar).
 //
 // Linhas em branco e comentários são representados como "Raw" e ficam fora do
 // modelo visual (o editor visual trabalha com os horários).
@@ -47,14 +48,11 @@ enum class ParamKind {
     Dur,      // (DUR=valor)
 };
 
-// Um parâmetro de um horário, com o token EXATO como aparece no arquivo
-// (incluindo o espaço que o precede) para round-trip fiel.
+// Um parâmetro de um horário.
 struct Param {
     ParamKind kind = ParamKind::Fixo;
     std::wstring name;  // nome canônico maiúsculo (FIXO, ID, DUR...)
     std::wstring value; // apenas para Id/Dur (senão vazio)
-    // (NAME) ou (NAME=valor), precedido pelo espaço/whitespace original.
-    std::wstring token;
 };
 
 // Um horário do relógio.
@@ -94,17 +92,24 @@ public:
     // ou horário inválido).
     int addTime(const std::wstring& hhmm);
 
-    // Adiciona um parâmetro ao horário na linha de índice lineIndex.
-    void addParam(int lineIndex, ParamKind kind, const std::wstring& value);
+    // Adiciona um parâmetro ao horário na linha de índice lineIndex. Devolve
+    // false (e NÃO adiciona) se esse parâmetro já existe no horário.
+    bool addParam(int lineIndex, ParamKind kind, const std::wstring& value);
 
     // Remove o parâmetro na posição paramIndex do horário.
     void removeParam(int lineIndex, int paramIndex);
 
-    // Substitui TODOS os parâmetros do horário (copiar/colar entre horários).
+    // Substitui TODOS os parâmetros do horário (copiar/colar entre horários),
+    // sem nunca deixar o mesmo parâmetro repetido.
     void replaceParams(int lineIndex, const std::vector<Param>& params);
 
     // Apaga a LINHA inteira (horário ou crua) do documento.
     bool removeLine(int lineIndex);
+
+    // "Preencher": remove os horários existentes, mantém as linhas cruas
+    // (comentários/em branco) e insere a lista fornecida em ordem cronológica.
+    // Horários inválidos e repetidos na lista são ignorados.
+    void reschedule(const std::vector<std::wstring>& hhmmList);
 
     // Substitui o conteúdo inteiro pelo de outro documento (copiar relógio ->
     // outro relógio). Copia também o fim de linha.
