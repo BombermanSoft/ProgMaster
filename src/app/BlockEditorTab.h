@@ -46,7 +46,10 @@ class BlockEditorTab;
 // (edição textual crua). Nada é gravado até o Salvar.
 //
 // Os códigos vêm de um catálogo COMPARTILHADO entre todas as páginas
-// (blocos::CodeCatalogue), alimentado pelo folders.xml (somente leitura).
+// (blocos::CodeCatalogue), alimentado pelo folders.xml (somente leitura) e
+// pelos PRÓPRIOS ARQUIVOS: um código usado no arquivo e ausente do folders.xml
+// (o SOR do "GRADE - Copia.txt" oficial) entra na Lista para poder ser usado
+// como qualquer outro.
 class BlockFilePage final : public juce::Component {
 public:
     enum class Mode { Visual, Texto };
@@ -58,6 +61,9 @@ public:
 
     void reload();
     bool save(std::wstring& userMessage, std::string& technicalError);
+
+    // Refaz paleta, combo e cores dos chips (o catálogo é compartilhado).
+    void refreshCatalogueViews() { m_editor.refreshCatalogueViews(); }
 
     void setMode(Mode mode);
 
@@ -77,6 +83,7 @@ private:
     BlockEditorTab& m_host;
 
     PlaylistIni m_service;
+    blocos::CodeCatalogue& m_catalogue;
     std::wstring m_displayName;
     bool m_hasFileOnDisk = false;
     bool m_dirty = false;
@@ -120,6 +127,10 @@ private:
         std::wstring displayName;
     };
 
+    // BlockFilePage avisa o host quando adota um código novo, para as outras
+    // abas compartilharem a Lista atualizada.
+    friend class BlockFilePage;
+
     void rebuildPages();
     std::vector<Spec> resolveSpecs(readconf::ConfigScope scope) const;
     BlockFilePage* currentPage() const;
@@ -131,6 +142,15 @@ private:
     void discardCurrentPage();
     // Relê o folders.xml (Lista de Códigos) para alimentar o catálogo.
     void reloadCatalogue();
+    // Lê TODOS os arquivos de bloco do escopo atual e inclui na Lista de
+    // Códigos os códigos que eles usam e que o folders.xml não tem. Roda ANTES
+    // de criar as páginas, para que a paleta já nasça completa em todas as abas
+    // (o catálogo é compartilhado). Devolve quantos códigos entraram.
+    int adoptCodesInUse();
+    // Repassa a todas as páginas uma mudança no catálogo compartilhado. A
+    // página que adotou o código pode ainda não estar na lista (é o caso durante
+    // a construção), então ela é passada explicitamente em `extra`.
+    void refreshCatalogueViews(BlockFilePage* extra = nullptr);
 
     app::PlaylistConfigController& m_controller;
     PlaylistInstallation& m_installation;

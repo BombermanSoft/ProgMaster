@@ -219,6 +219,29 @@ std::wstring BlockDocument::text() const
     return out;
 }
 
+std::vector<std::wstring> BlockDocument::distinctCodes() const
+{
+    std::vector<std::wstring> out;
+    for (const Line& l : m_lines) {
+        if (l.kind != Line::Kind::Horario) {
+            continue;
+        }
+        for (const std::wstring& code : l.horario.codes) {
+            bool known = false;
+            for (const std::wstring& seen : out) {
+                if (codeEquals(seen, code)) {
+                    known = true;
+                    break;
+                }
+            }
+            if (!known) {
+                out.push_back(code);
+            }
+        }
+    }
+    return out;
+}
+
 int BlockDocument::addTime(const std::wstring& hhmm)
 {
     const int minutes = parseTime(hhmm);

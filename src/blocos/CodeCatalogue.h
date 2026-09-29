@@ -23,10 +23,23 @@
 
 namespace blocos {
 
+// De onde veio o código da Lista de Códigos. A distinção é só de APRESENTAÇÃO
+// (a Lista mostra a procedência na dica e na borda do botão); o comportamento
+// de gravação é o mesmo para os dois casos de sessão: nada vai para o
+// folders.xml.
+enum class CodeOrigin {
+    FoldersXml,     // veio da Lista de Códigos da instalação (registro DBFId)
+    FromBlockFile,  // o ARQUIVO DE BLOCO usa, mas o folders.xml não lista
+    CreatedByUser   // criado pelo usuário com o "+" da paleta
+};
+
 struct CodeEntry {
     std::wstring code;   // DBFId: "COMER", "MUSI", "VHAB"...
     std::wstring title;  // Title do registro (auxiliar, pode vir vazio)
-    bool sessionOnly = false; // true = criado nesta sessão, não está no arquivo
+    CodeOrigin origin = CodeOrigin::FoldersXml;
+    // true = NÃO está no folders.xml — criado pelo usuário OU adotado de um
+    // arquivo de bloco. Só estes podem ser removidos pela lixeira.
+    bool sessionOnly = false;
 };
 
 class CodeCatalogue {
@@ -41,6 +54,20 @@ public:
     // código é inválido ou já existe.
     bool addSessionCode(const std::wstring& code, const std::wstring& title,
                         std::wstring& error);
+
+    // Inclui na Lista de Códigos os códigos que o ARQUIVO DE BLOCO usa mas que o
+    // folders.xml NÃO lista. É o caso do SOR, usado no "GRADE - Copia.txt" da
+    // instalação oficial: o editor desenhava o chip CINZA (sem cor, porque o
+    // catálogo não tinha o código) e não deixava armar nem escolher o código no
+    // combo "Aplicar em". Depois desta chamada ele ganha cor, botão na paleta e
+    // entrada no combo.
+    //
+    // O código NÃO é validado pelo formato de digitação: quem está falando é o
+    // arquivo real, não o usuário, e o arquivo manda. Só entradas em branco são
+    // ignoradas. Códigos repetidos na lista não viram botões duplicados, e os que
+    // já existem no catálogo são preservados como estão (nada é sobrescrito).
+    // O folders.xml nunca é alterado. Devolve quantos códigos foram incluídos.
+    int adoptCodesFromFile(const std::vector<std::wstring>& codes);
 
     // Remove um código de SESSÃO. Devolve false para códigos do arquivo
     // (folders.xml nunca é alterado por esta classe).

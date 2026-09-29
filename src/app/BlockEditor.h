@@ -28,6 +28,11 @@
 // "Remover" pergunta o que remover dos selecionados — Horários (apaga as
 // linhas inteiras) ou Códigos (apaga só os chips, mantendo o horário).
 //
+// Códigos fora do folders.xml: o arquivo pode usar um código que a Lista de
+// Códigos da instalação não tem (o SOR do "GRADE - Copia.txt" oficial). Toda
+// vez que o documento é relido, esses códigos entram na Lista (só em memória),
+// para aparecerem com cor própria na paleta e no combo, como qualquer outro.
+//
 // Seleção: o botão quadrado habilita a seleção; ativado, vira o quadrado
 // "selecionar todos". O combo + "Aplicar" envia um código para TODOS os
 // marcados.
@@ -53,6 +58,11 @@ public:
 
     // Relê o documento e reconstrói as linhas visuais.
     void rebuild();
+
+    // Refaz paleta, combo e cores dos chips a partir do catálogo atual. Usado
+    // quando OUTRA página adota um código novo, para as abas não ficarem
+    // mostrando listas diferentes.
+    void refreshCatalogueViews();
 
     // Disparado quando este editor ALTERA o documento.
     std::function<void()> onChange;

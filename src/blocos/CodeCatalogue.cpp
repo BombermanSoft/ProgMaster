@@ -116,9 +116,32 @@ bool CodeCatalogue::addSessionCode(const std::wstring& code,
     entry.code = clean;
     entry.title = title;
     trimWs(entry.title);
+    entry.origin = CodeOrigin::CreatedByUser;
     entry.sessionOnly = true;
     m_entries.push_back(std::move(entry));
     return true;
+}
+
+int CodeCatalogue::adoptCodesFromFile(const std::vector<std::wstring>& codes)
+{
+    int added = 0;
+    for (const std::wstring& raw : codes) {
+        std::wstring clean = raw;
+        trimWs(clean);
+        if (clean.empty()) {
+            continue;
+        }
+        if (indexOfIn(m_entries, clean) >= 0) {
+            continue; // já está na Lista (do arquivo ou de sessão)
+        }
+        CodeEntry entry;
+        entry.code = std::move(clean);
+        entry.origin = CodeOrigin::FromBlockFile;
+        entry.sessionOnly = true;
+        m_entries.push_back(std::move(entry));
+        ++added;
+    }
+    return added;
 }
 
 bool CodeCatalogue::removeSessionCode(const std::wstring& code)

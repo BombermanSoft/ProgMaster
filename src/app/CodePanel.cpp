@@ -84,19 +84,25 @@ juce::Colour codeColour(int index)
 // ============================================================================
 
 CodePanel::CodeButton::CodeButton(std::wstring codeText, std::wstring titleText,
-                                 juce::Colour colour, bool sessionOnly)
+                                 juce::Colour colour,
+                                 blocos::CodeOrigin origin, bool sessionOnly)
     : juce::Button(app::jstr(codeText)), m_code(std::move(codeText)),
-      m_colour(colour), m_sessionOnly(sessionOnly)
+      m_colour(colour), m_origin(origin), m_sessionOnly(sessionOnly)
 {
+    // A procedência vai na dica: o usuário precisa saber por que um código está
+    // na Lista mesmo sem estar no folders.xml da instalação.
+    juce::String note;
+    if (origin == blocos::CodeOrigin::FromBlockFile) {
+        note = juce::String(L"\n(usado no arquivo de bloco, mas não consta do "
+                            L"folders.xml desta instalação)");
+    } else if (origin == blocos::CodeOrigin::CreatedByUser) {
+        note = juce::String(L"\n(criado nesta sessão)");
+    }
     if (!titleText.empty()) {
         setTooltip(app::jstr(titleText) + juce::String(L"\nCódigo: ")
-                   + app::jstr(m_code)
-                   + (sessionOnly ? juce::String(L"\n(criado nesta sessão)")
-                                  : juce::String()));
+                   + app::jstr(m_code) + note);
     } else {
-        setTooltip(app::jstr(m_code)
-                   + (sessionOnly ? juce::String(L"\n(criado nesta sessão)")
-                                  : juce::String()));
+        setTooltip(app::jstr(m_code) + note);
     }
     setClickingTogglesState(false);
 }
@@ -171,8 +177,9 @@ CodePanel::CodePanel(blocos::CodeCatalogue& catalogue) : m_catalogue(catalogue)
     m_addBtn.onClick = [this] { createCode(); };
     addAndMakeVisible(m_addBtn);
 
-    m_trashBtn.setTooltip(L"Remover o código ARMADO quando ele foi criado "
-                          L"nesta sessão. Códigos do folders.xml nunca são "
+    m_trashBtn.setTooltip(L"Remover o código ARMADO da Lista quando ele não vem "
+                          L"do folders.xml (criado com \"+\" ou adotado do "
+                          L"arquivo de bloco). Códigos do folders.xml nunca são "
                           L"removidos.");
     m_trashBtn.onClick = [this] { removeArmedSessionCode(); };
     addAndMakeVisible(m_trashBtn);
@@ -202,7 +209,7 @@ void CodePanel::rebuild()
         const blocos::CodeEntry& entry = entries[i];
         auto button = std::make_unique<CodeButton>(
             entry.code, entry.title, codeColour(static_cast<int>(i)),
-            entry.sessionOnly);
+            entry.origin, entry.sessionOnly);
         CodeButton* raw = button.get();
         raw->onClick = [this, raw] { armFromButton(raw); };
         // Os botões SÓ aparecem e recebem cliques se forem filhos do painel.
@@ -213,13 +220,33 @@ void CodePanel::rebuild()
     // quando o painel ainda não tem largura — sem isso a paleta apareceria
     // vazia até o próximo clique em "+".
     resized();
-    m_hint.setText(m_catalogue.empty()
-                       ? juce::String(L"Nenhum código encontrado na Lista de "
-                                      L"Códigos (folders.xml) desta instalação.")
-                       : juce::String(L"Códigos da Lista de Códigos (folders.xml). "
-                                      L"Arraste a borda inferior para mostrar "
-                                      L"mais fileiras."),
-                   juce::dontSendNotification);
+    // A dica diz de onde veio a lista: o folders.xml da instalação e, quando
+    // existe, os códigos que o próprio arquivo usa e que NÃO estão lá.
+    int fromFile = 0;
+    for (const blocos::CodeEntry& entry : m_catalogue.entries()) {
+        if (entry.origin == blocos::CodeOrigin::FromBlockFile) {
+            ++fromFile;
+        }
+    }
+    juce::String hint;
+    if (m_catalogue.empty()) {
+        hint = juce::String(L"Nenhum código encontrado na Lista de Códigos "
+                            L"(folders.xml) desta instalação.");
+    } else if (fromFile > 0) {
+        hint = juce::String(L"Lista de Códigos: folders.xml + ")
+               + juce::String(fromFile)
+               + (fromFile == 1 ? juce::String(L" código usado no arquivo e "
+                                               L"ausente do folders.xml. ")
+                                : juce::String(L" códigos usados no arquivo e "
+                                               L"ausentes do folders.xml. "))
+               + juce::String(L"Arraste a borda inferior para mostrar mais "
+                              L"fileiras.");
+    } else {
+        hint = juce::String(L"Códigos da Lista de Códigos (folders.xml). "
+                            L"Arraste a borda inferior para mostrar mais "
+                            L"fileiras.");
+    }
+    m_hint.setText(hint, juce::dontSendNotification);
     if (m_armed.empty()) {
         for (auto& button : m_codeButtons) {
             if (button) {

@@ -24,7 +24,7 @@ BlockFilePage::BlockFilePage(BlockEditorTab& host, std::filesystem::path path,
                              std::wstring displayName,
                              blocos::CodeCatalogue& catalogue,
                              std::vector<BlockClip>& clipboard)
-    : m_host(host), m_service(std::move(path)),
+    : m_host(host), m_service(std::move(path)), m_catalogue(catalogue),
       m_displayName(std::move(displayName)),
       m_editor(m_doc, catalogue, clipboard)
 {
@@ -41,7 +41,13 @@ BlockFilePage::BlockFilePage(BlockEditorTab& host, std::filesystem::path path,
     m_textEditor.onTextChange = [this] {
         if (!m_updatingText) {
             m_doc.setText(app::wstr(m_textEditor.getText()));
-            m_editor.rebuild();
+            // Digitou um código que ainda não está na Lista: adota e repassa
+            // para as outras abas, que compartilham o mesmo catálogo.
+            if (m_catalogue.adoptCodesFromFile(m_doc.distinctCodes()) > 0) {
+                m_host.refreshCatalogueViews(this);
+            } else {
+                m_editor.rebuild();
+            }
             onDocChanged();
         }
     };
@@ -63,7 +69,13 @@ void BlockFilePage::reload()
         text.clear();
     }
     m_doc.setText(text);
-    m_editor.rebuild();
+    if (m_catalogue.adoptCodesFromFile(m_doc.distinctCodes()) > 0) {
+        // Um código do arquivo entrou na Lista: todas as páginas precisam
+        // mostrar a lista nova, não só esta.
+        m_host.refreshCatalogueViews(this);
+    } else {
+        m_editor.rebuild();
+    }
     m_updatingText = true;
     m_textEditor.setText(app::jstr(text), false);
     m_updatingText = false;
@@ -178,6 +190,9 @@ void BlockEditorTab::openBlocos(readconf::ConfigScope scope)
 
 void BlockEditorTab::reopenFromDisk()
 {
+    // Adota antes de recarregar: um arquivo pode ter ganhado um código novo fora
+    // do folders.xml enquanto o programa estava aberto.
+    adoptCodesInUse();
     for (auto& page : m_pages) {
         page->reload();
     }
@@ -223,6 +238,10 @@ void BlockEditorTab::refreshFromController()
 
 void BlockEditorTab::rebuildPages()
 {
+    // Primeiro a Lista de Códigos fica completa com o que TODOS os arquivos do
+    // escopo usam; só então as páginas nascem, para que a paleta já mostre
+    // tudo em qualquer aba.
+    adoptCodesInUse();
     m_pages.clear();
     m_fileTabs.clearTabs();
     for (const Spec& spec : resolveSpecs(m_current)) {
@@ -234,6 +253,40 @@ void BlockEditorTab::rebuildPages()
     }
     if (!m_pages.empty()) {
         m_fileTabs.setCurrentTabIndex(0, false);
+    }
+}
+
+int BlockEditorTab::adoptCodesInUse()
+{
+    std::vector<std::wstring> used;
+    for (const Spec& spec : resolveSpecs(m_current)) {
+        PlaylistIni service(spec.path);
+        std::wstring text;
+        std::wstring msg;
+        std::string err;
+        if (!service.load(text, msg, err)) {
+            continue; // arquivo ainda não existe: nada a adotar
+        }
+        blocos::BlockDocument doc;
+        doc.setText(text);
+        for (const std::wstring& code : doc.distinctCodes()) {
+            used.push_back(code);
+        }
+    }
+    return m_catalogue.adoptCodesFromFile(used);
+}
+
+void BlockEditorTab::refreshCatalogueViews(BlockFilePage* extra)
+{
+    for (auto& page : m_pages) {
+        if (page.get() != extra) {
+            page->refreshCatalogueViews();
+        }
+    }
+    if (extra != nullptr) {
+        // A página que adotou o código pode ainda não estar em m_pages (durante a
+        // construção), então é atualizada por conta própria.
+        extra->refreshCatalogueViews();
     }
 }
 

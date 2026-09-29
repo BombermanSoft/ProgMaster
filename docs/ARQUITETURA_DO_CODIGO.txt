@@ -7,8 +7,8 @@ RESUMO: núcleo em C++ puro (std::wstring + std::filesystem) separado da
 camada de interface JUCE. Toda a regra de formato vive em src/readconf,
 testada sem UI (183 testes). O RELÓGIO da Etapa 3 tem núcleo próprio em
 src/relogio (102 testes) e os BLOCOS da Etapa 4 têm núcleo próprio em
-src/blocos (BlockDocument + CodeCatalogue, 109 testes). A UI (src/app)
-apenas "fonia" os núcleos. Total: 423 testes automatizados.
+src/blocos (BlockDocument + CodeCatalogue, 132 testes). A UI (src/app)
+apenas "fonia" os núcleos. Total: 446 testes automatizados.
 
 -----------------------------------------------------------------------
 1. VISÃO GERAL / CAMADAS
@@ -121,13 +121,29 @@ src/app/JuceHelpers.h.
     que existe nos PARÂMETROS dos relógios (RelogioDocument::addParam) NÃO
     se aplica aqui — são coisas diferentes e os dois modelos mantêm
     regras opostas de propósito. replaceCodes grava a lista VERBATIM,
-    incluindo repetições.
+     including repetições. distinctCodes() devolve os códigos DISTINTOS na
+     ordem de aparição (repetição conta uma vez) e alimenta a adoção de
+     códigos ausentes do folders.xml (ver CodeCatalogue abaixo).
   - CodeCatalogue          códigos em ordem estável: os lidos do
-    folders.xml (via FoldersXml, sempre somente LEITURA) + os de SESSÃO
-    criados pelo "+". indexOf/empty/entries; addSessionCode (recusa
-    vazio/com espaço/inexistente) e removeSessionCode (recusa código do
-    arquivo). A cor NÃO é persistida (ver CONTEXTO K.8).
-  - CodeEntry              struct { code, title, sessionOnly }
+     folders.xml (via FoldersXml, sempre somente LEITURA) + os de SESSÃO
+     criados pelo "+" + os ADOTADOS DO ARQUIVO. indexOf/empty/entries;
+     addSessionCode (recusa vazio/com espaço/inexistente) e
+     removeSessionCode (recusa código do arquivo).
+     adoptCodesFromFile(codes) inclui na Lista os códigos que o ARQUIVO DE
+     BLOCO usa e que o folders.xml não tem — caso real do SOR em
+     "pgm\Grades\GRADE - Copia.txt". Sem isso o índice ficava -1 e o chip
+     saía CINZA, fora da paleta e do combo "Aplicar em". O adotado NÃO é
+     validado pelo formato de digitação (quem fala é o arquivo, e o
+     arquivo manda): só branco é ignorado, repetição não duplica botão e
+     código já existente é preservado. NUNCA grava o folders.xml.
+     A cor NÃO é persistida (ver CONTEXTO K.8).
+  - CodeEntry              struct { code, title, origin, sessionOnly }
+     origin: CodeOrigin::FoldersXml (veio da instalação) |
+     FromBlockFile (o arquivo usa, o folders.xml não lista) |
+     CreatedByUser (criado com o "+"). Só muda a DICA do botão e o texto
+     do painel; sessionOnly continua significando "não está no
+     folders.xml", ou seja, removível pela lixeira.
+
 
 -----------------------------------------------------------------------
 3. FLUXO DE DADOS DO playlist.ini
@@ -246,6 +262,18 @@ MainWindow            -> PlaylistConfigController (dono),
                             (o painel) + área de transferência compartilhada
   CodePanel             -> blocos::CodeCatalogue (referência); NUNCA
                             escreve no folders.xml
+  (ADOÇÃO DE CÓDIGOS)    o catálogo é COMPARTILHADO pelas sub-abas, então a
+                            adoção é feita em três pontos para as paletas
+                            nunca divergirem:
+                            BlockEditorTab::adoptCodesInUse() lê TODOS os
+                            arquivos do escopo ANTES de criar as páginas
+                            (a paleta já nasce completa em qualquer aba);
+                            BlockEditor::rebuild() adota o próprio documento
+                            (cobre abrir o arquivo, colar e editar no modo
+                            Texto); e quando uma página adota,
+                            BlockEditorTab::refreshCatalogueViews() repassa
+                            a lista nova às outras abas. Só a palette/combo
+                            é refeita — nenhum arquivo do disco é alterado.
   PlaylistConfigController -> PlaylistIniDocument, PlaylistIni,
                             TextFileIO, ReadingConfiguration
   (Testes) tests\RulesTests -> readconf apenas (sem JUCE).
@@ -272,9 +300,9 @@ MainWindow            -> PlaylistConfigController (dono),
   -> 0 erros 0 warnings (/W4); ProgMaster.exe em build\ProgMaster_artefacts\Release\
   -> ProgMasterCoreTests.exe 183/183 PASS (build\Release\)
   -> ProgMasterRelogioTests.exe 102/102 PASS (build\Release\)
-  -> ProgMasterBlocosTests.exe 109/109 PASS (build\Release\)
+  -> ProgMasterBlocosTests.exe 132/132 PASS (build\Release\)
   -> ProgMasterPlaylistTests.exe 29/29 PASS (build\Release\)
-  Total: 423/423.
+  Total: 446/446.
 
   Observações: JUCE baixado por FetchContent (GIT_TAG 8.0.15 shallow);
   CMake LANGUAGES C CXX; /utf-8; CRT estática (/MT); targets próprios

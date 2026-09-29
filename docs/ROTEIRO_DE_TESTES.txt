@@ -330,12 +330,13 @@ PREPARAÇÃO
        SEMANAL, são as sete sub-abas (MapaSeg..MapaDom / GradeSeg..GradeDom)
        e o conteúdo de cada dia é o do arquivo daquele dia.
 18.3. Painel de Códigos. Os botões coloridos são os DBFId da Lista de
-       Códigos (folders.xml) da instalação. ABRIR A GUIA BLOCOS JÁ COM OS
-       CÓDIGOS VISÍVEIS — não é preciso clicar em "+" para eles
-       aparecerem (foi um bug corrigido: a paleta saía vazia). A Lista real
-       tem dezenas de códigos: aparecem até DUAS fileiras e o contador
-       "1/N" (canto inferior esquerdo) indica a página; os botões ‹ e ›
-       mudam de página. O conjunto de códigos permanece completo.
+       Códigos (folders.xml) da instalação, MAIS os códigos que o próprio
+       arquivo usa e que o folders.xml não lista (ver 18.6.2). ABRIR A GUIA
+       BLOCOS JÁ COM OS CÓDIGOS VISÍVEIS — não é preciso clicar em "+"
+       para eles aparecerem (foi um bug corrigido: a paleta saía vazia). A
+       Lista real tem dezenas de códigos: aparecem até DUAS fileiras e o
+       contador "1/N" (canto inferior esquerdo) indica a página; os botões ‹
+       e › mudam de página. O conjunto de códigos permanece completo.
 18.4. Redimensionar o painel. Arrastar a BORDA INFERIOR do painel para
        cima: o painel CRESCE, ganha mais fileiras (até 8) e os códigos se
        reorganizam; arrastar para baixo encolhe (mínimo 1). A borda fica
@@ -357,14 +358,37 @@ PREPARAÇÃO
        restrição de um parâmetro por horário (um FIXO, um ID, um DUR) —
        verificar no item 19.2 que clicar duas vezes no mesmo parâmetro
        NÃO duplica.
+18.6.2. CÓDIGO DO ARQUIVO QUE NÃO ESTÁ NO folders.xml. Um código usado no
+       arquivo e ausente da Lista de Códigos da instalação deve entrar
+       SOZINHO na Lista: ganha COR PRÓPRIA (nunca cinza), botão na paleta,
+       entrada no seletor do "Aplicar" e pode ser armado e aplicado como
+       qualquer outro.
+       COMO REPRODUZIR NA INSTALAÇÃO OFICIAL: o "Folders.xml" tem 8 DBFId
+       (COMER, INT, MUSI, NAC, VHAB, VHHORCER, VHPAS, VIDCOM) e o arquivo
+       "pgm\Grades\GRADE - Copia.txt" usa o SOR, que NÃO está nessa lista.
+       Abrir esse arquivo (ou um arquivo com código parecido) e conferir:
+       - o chip SOR dentro do horário NÃO é cinza, tem cor como os outros;
+       - existe um BOTÃO SOR na paleta, com borda tracejada (não vem do
+         folders.xml);
+       - a dica do botão diz "usado no arquivo de bloco, mas não consta do
+         folders.xml desta instalação";
+       - a dica do painel cita as duas origens ("Lista de Códigos: folders.xml
+         + 1 código usado no arquivo e ausente do folders.xml");
+       - SOR aparece no seletor do "Aplicar em" e pode ser enviado a um
+         horário;
+       - com SOR ARMADO, a lixeira está habilitada e o remove da Lista (ele
+         volta se o arquivo for aberto de novo, porque está no arquivo);
+       - CONFIRMAR QUE O folders.xml NÃO MUDOU: comparar tamanho/data antes
+         e depois de abrir, aplicar e salvar.
 18.7. Criar um código (botão "+"). Abre o diálogo "Novo código"; digitar
        só letras/números (o espaço é recusado, e o código precisa ser
        novo). O código passa a existir no painel com BORDA TRACEJADA
        (sinal de "criado nesta sessão"), já ARMADO, e o rodapé avisa.
        ESPERADO: o folders.xml NÃO é alterado em hipótese nenhuma — o
        arquivo original precisa continuar intacto.
-18.8. Lixeira. Com um código de sessão ARMADO, o botão ✕ fica habilitado e
-       o remove. Com um código do folders.xml armado, o botão fica
+18.8. Lixeira. Com um código que NÃO vem do folders.xml ARMADO (criado com "+"
+       ou adotado do arquivo, item 18.6.2), o botão ✕ fica habilitado e o
+       remove. Com um código do folders.xml armado, o botão fica
        DESABILITADO e, se clicado mesmo assim, avisa que a Lista de Códigos
        é somente leitura.
 18.9. Horários. Campo "Adicionar Horário" + "OK": digitar 00:15 e OK cria

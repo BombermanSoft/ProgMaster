@@ -533,6 +533,75 @@ void testCatalogoRecarregaMantemSessao()
     CHECK_MSG(cat.contains(L"COMER"), "codigo do arquivo continua");
 }
 
+// ============================================================================
+// Códigos que o ARQUIVO usa mas o folders.xml não lista (o SOR real do
+// "GRADE - Copia.txt"). Eles entram na Lista de Códigos para ganhar cor,
+// botão na paleta e entrada no combo — sem alterar o folders.xml.
+// ============================================================================
+
+void testDistinctCodesDoArquivo()
+{
+    // Linha real do "GRADE - Copia.txt" da instalação oficial: SOR repetido.
+    const std::wstring real =
+        L"00:00 VHAB, SOR, SOR, VHPAS, SOR, SOR, VHPAS, SOR, SOR, VHPAS, SOR, SOR, VHAB\r\n";
+    BlockDocument d;
+    d.setText(real);
+    const std::vector<std::wstring> codes = d.distinctCodes();
+    CHECK_MSG(codes.size() == 3, "tres codigos distintos (repeticao conta uma vez)");
+    CHECK_MSG(codes[0] == L"VHAB", "primeiro na ordem de aparicao");
+    CHECK_MSG(codes[1] == L"SOR", "SOR logo depois de VHAB");
+    CHECK_MSG(codes[2] == L"VHPAS", "VHPAS por ultimo");
+}
+
+void testCatalogoAdotaCodigoDoArquivo()
+{
+    const std::filesystem::path path = writeTemp(L"FoldersAdota.xml", kFoldersXml);
+    CodeCatalogue cat;
+    std::string err;
+    CHECK_MSG(cat.loadFromFoldersXml(path, err).empty(), "catalogo carregado");
+    const size_t base = cat.size();
+    const std::string before = readBytes(path);
+
+    // SOR nao esta no folders.xml; COMER ja esta; vazio e espaco sao ignorados.
+    const int added =
+        cat.adoptCodesFromFile({ L"SOR", L"COMER", L"sor", L"", L"  " });
+    CHECK_MSG(added == 1, "so o SOR entrou");
+    CHECK_MSG(cat.size() == base + 1, "a Lista cresceu um codigo");
+    CHECK_MSG(cat.contains(L"SOR"), "SOR agora esta na Lista de Codigos");
+    CHECK_MSG(cat.indexOf(L"SOR") >= 0, "SOR tem indice — logo tem cor (nao cinza)");
+
+    const int i = cat.indexOf(L"SOR");
+    CHECK_MSG(cat.entries()[static_cast<size_t>(i)].sessionOnly,
+              "codigo adotado do arquivo e de sessao (borda tracejada)");
+    CHECK_MSG(cat.entries()[static_cast<size_t>(i)].origin == CodeOrigin::FromBlockFile,
+              "origem marcada como FromBlockFile");
+    CHECK_MSG(cat.entries()[0].origin == CodeOrigin::FoldersXml,
+              "codigos do folders.xml continuam FoldersXml");
+
+    CHECK_MSG(cat.adoptCodesFromFile({ L"SOR" }) == 0, "adotar de novo nao duplica");
+    CHECK_MSG(cat.size() == base + 1, "tamanho estavel apos segunda adocao");
+
+    // Adotado nao vem do folders.xml, entao a lixeira pode remove-lo da Lista.
+    CHECK_MSG(cat.removeSessionCode(L"SOR"), "codigo adotado pode ser removido da Lista");
+    CHECK_MSG(!cat.contains(L"SOR"), "SOR saiu da Lista");
+    CHECK_MSG(!cat.removeSessionCode(L"COMER"), "COMER (do folders.xml) continua intocavel");
+
+    CHECK_MSG(readBytes(path) == before,
+              "folders.xml NAO foi modificado ao adotar codigo");
+}
+
+void testCodigoAdotadoSobreviveRecarga()
+{
+    const std::filesystem::path path = writeTemp(L"FoldersAdotaReload.xml", kFoldersXml);
+    CodeCatalogue cat;
+    std::string err;
+    CHECK_MSG(cat.loadFromFoldersXml(path, err).empty(), "carregado");
+    CHECK_MSG(cat.adoptCodesFromFile({ L"SOR" }) == 1, "SOR adotado");
+    CHECK_MSG(cat.loadFromFoldersXml(path, err).empty(), "recarregado do folders.xml");
+    CHECK_MSG(cat.contains(L"SOR"), "codigo adotado sobrevive ao recarregar");
+    CHECK_MSG(cat.contains(L"COMER"), "codigo do arquivo continua");
+}
+
 } // namespace
 
 int main()
@@ -559,6 +628,9 @@ int main()
     testCatalogoDoArquivo();
     testCatalogoCodigoDeSessao();
     testCatalogoRecarregaMantemSessao();
+    testDistinctCodesDoArquivo();
+    testCatalogoAdotaCodigoDoArquivo();
+    testCodigoAdotadoSobreviveRecarga();
 
     std::cout << g_checks << "/" << g_checks << " ok"
               << (g_failures == 0 ? "" : " (com falhas)") << "\n";

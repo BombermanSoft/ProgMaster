@@ -82,7 +82,8 @@ private:
     class CodeButton final : public juce::Button {
     public:
         CodeButton(std::wstring codeText, std::wstring titleText,
-                   juce::Colour colour, bool sessionOnly);
+                   juce::Colour colour, blocos::CodeOrigin origin,
+                   bool sessionOnly);
 
         std::wstring code() const { return m_code; }
         void setArmedUi(bool armed);
@@ -92,6 +93,7 @@ private:
     private:
         std::wstring m_code;
         juce::Colour m_colour;
+        blocos::CodeOrigin m_origin = blocos::CodeOrigin::FoldersXml;
         bool m_sessionOnly = false;
         bool m_armed = false;
     };

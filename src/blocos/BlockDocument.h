@@ -115,6 +115,13 @@ public:
     // Serializa um horário no formato do arquivo (usado por text()).
     static std::wstring horarioText(const Horario& h);
 
+    // Códigos DISTINTOS usados nos horários deste documento, na ordem em que
+    // aparecem (repetições do mesmo código — como os cinco COMER do Mapa — saem
+    // uma vez só; a comparação ignora maiúsculas/minúsculas). Serve para
+    // conferir quais códigos o arquivo usa, inclusive os que NÃO constam da
+    // Lista de Códigos do folders.xml (ver CodeCatalogue::adoptCodesFromFile).
+    std::vector<std::wstring> distinctCodes() const;
+
 private:
     // Índice da primeira linha de horário cujo tempo é >= minutos.
     size_t insertionIndex(int minutes) const;

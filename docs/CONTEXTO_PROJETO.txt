@@ -1,8 +1,8 @@
 =======================================================================
 CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
 Data: 26/09/2026
-Status: Etapa 4 concluída (build limpo /W4, 423 testes: 183 do núcleo
-        (Etapa 2) + 102 do Relógio (Etapa 3) + 109 dos Blocos e 29 do
+Status: Etapa 4 concluída (build limpo /W4, 446 testes: 183 do núcleo
+        (Etapa 2) + 102 do Relógio (Etapa 3) + 132 dos Blocos e 29 do
         leitor da Lista de Códigos (Etapa 4), app abre); Etapas 2 e 3
         concluídas; testes manuais pendentes (docs\ROTEIRO_DE_TESTES.txt)
 =======================================================================
@@ -704,6 +704,45 @@ J.13. Ajustes pedidos pelo usuário (26/09/2026) — 423 testes verdes:
     testAdicionarCodigo/testReplaceCodes reescritos para a nova regra.
     ProgMasterBlocosTests subiu de 96 para 109 verificações.
   - Total: 183 + 102 + 109 + 29 = 423/423.
+
+J.14. Código do arquivo ausente do folders.xml (26/09/2026) — 446 testes:
+  - Sintoma: um código usado no arquivo de bloco e que NÃO consta do
+    folders.xml era desenhado como chip CINZA (indice -1 no catálogo) e
+    ficava fora da Lista de Códigos — não dava para ARMAR nem escolher no
+    combo "Aplicar em". Caso real da instalação oficial: o SOR, usado em
+    "pgm\Grades\GRADE - Copia.txt". O Folders.xml desta instalação tem
+    apenas 8 DBFId (COMER, INT, MUSI, NAC, VHAB, VHHORCER, VHPAS, VIDCOM)
+    e o SOR não é um deles.
+  - CORREÇÃO: CodeCatalogue::adoptCodesFromFile() inclui na Lista os códigos
+    que o ARQUIVO usa e que o folders.xml não traz. O código adotado ganha
+    índice (portanto COR própria, em vez do cinza), botão na paleta, entrada
+    no combo "Aplicar em" e passa a ser aplicável como qualquer outro.
+  - QUANDO a varredura acontece: (a) BlockEditorTab::adoptCodesInUse() lê
+    TODOS os arquivos do escopo ANTES de criar as páginas, para a paleta já
+    nascer completa em qualquer aba, porque o catálogo é compartilhado;
+    (b) BlockEditor::rebuild() adota o próprio documento, o que cobre abrir
+    o arquivo, colar horários e editar no modo Texto; (c) quando uma página
+    adota, BlockEditorTab::refreshCatalogueViews() repassa às outras abas.
+  - O código adotado NÃO é validado pelo formato de digitação: quem fala é o
+    arquivo real, não o usuário, e o arquivo manda. Só entradas em branco
+    são ignoradas; repetições não viram botões duplicados; códigos já
+    existentes são preservados como estão. O folders.xml NUNCA é gravado.
+  - Procedência marcada por CodeOrigin (FoldersXml / FromBlockFile /
+    CreatedByUser): a dica do botão diz "usado no arquivo de bloco, mas não
+    consta do folders.xml desta instalação". O código adotado é de sessão
+    (borda tracejada) e pode sair da Lista pela lixeira, como o criado com
+    "+". A dica do painel passa a citar as duas origens: ex.: "Lista de
+    Códigos: folders.xml + 1 código usado no arquivo e ausente do
+    folders.xml".
+  - Novo BlockDocument::distinctCodes() devolve os códigos distintos na
+    ordem de aparição (repetição conta uma vez) — é o que alimenta a
+    adoção.
+  - Testes novos: testDistinctCodesDoArquivo (linha real com SOR repetido),
+    testCatalogoAdotaCodigoDoArquivo (inclui, não duplica, marca origem,
+    remove pela lixeira e confere que o folders.xml ficou byte a byte igual)
+    e testCodigoAdotadoSobreviveRecarga. ProgMasterBlocosTests subiu de
+    109 para 132 verificações.
+  - Total: 183 + 102 + 132 + 29 = 446/446.
 
 -----------------------------------------------------------------------
 K. PROBLEMAS CONHECIDOS / LIMITAÇÕES

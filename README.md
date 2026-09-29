@@ -73,8 +73,14 @@ O menu **Editar** traz os editores **visuais** (Relógio e Blocos) e o menu
 - **Código grudado no mouse**: clicar num código o arma; o clique num horário o
   adiciona e ele continua armado (repetir rápido nos vários horários);
 - Botão **`+`** cria um **código de sessão** (só nesta sessão, com borda
-  tracejada) e a **lixeira** remove apenas códigos de sessão — o `folders.xml` é
+  tracejada) e a **lixeira** remove apenas códigos que não vêm do `folders.xml`
+  (os de sessão e os adotados do arquivo) — o `folders.xml` é
   **sempre somente leitura**;
+- **Códigos que o arquivo usa e o `folders.xml` não lista** entram sozinhos na
+  Lista de Códigos: antes de mais nada ganham cor, botão na paleta e entrada no
+  combo **Aplicar em** (o chip ficava cinza e não dava para usá-los). Caso real
+  da instalação oficial: o `SOR`, usado em `pgm\Grades\GRADE - Copia.txt`. A
+  dica do botão diz a procedência, e o `folders.xml` continua intocado;
 - **Aplicar** envia um código a todos os horários selecionados. **Não há
   limite de um código por horário**: o mesmo código pode ser repetido no mesmo
   horário, como no Mapa real (`COMER` cinco vezes na primeira linha). Essa
@@ -119,7 +125,7 @@ build\Release\ProgMasterBlocosTests.exe
 build\Release\ProgMasterPlaylistTests.exe
 ```
 
-Estado esperado: 0 erros, 0 warnings (a suíte de testes roda 423/423).
+Estado esperado: 0 erros, 0 warnings (a suíte de testes roda 446/446).
 
 ## Como executar
 
@@ -136,11 +142,11 @@ BOM e `log.txt` UTF-8 com BOM).
 ```
 build\Release\ProgMasterCoreTests.exe       183/183  regras e playlist.ini
 build\Release\ProgMasterRelogioTests.exe   102/102  modelo dos Relógios
-build\Release\ProgMasterBlocosTests.exe     109/109  modelo de Mapas/Grades + catálogo
+build\Release\ProgMasterBlocosTests.exe     132/132  modelo de Mapas/Grades + catálogo
 build\Release\ProgMasterPlaylistTests.exe   29/29  leitor do folders.xml
 ```
 
-Total: 423/423.
+Total: 446/446.
 
 Os testes cobrem regras de formato, parse/re-serialização do `.ini`,
 localização de arquivos por escopo, validação de afiliadas, o round-trip exato

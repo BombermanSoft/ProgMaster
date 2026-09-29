@@ -217,6 +217,28 @@ void BlockEditor::rebuildCombo()
 
 void BlockEditor::rebuild()
 {
+    // Um código que o ARQUIVO usa e que o folders.xml não lista entra na Lista
+    // de Códigos, para ganhar cor, botão na paleta e entrada no combo "Aplicar
+    // em" — sem isso ele aparecia só como chip cinza e não podia ser usado.
+    // rebuild() é o ponto que cobre TODA alteração do documento (abrir o
+    // arquivo, colar horários, editar no modo Texto), então a checagem é uma
+    // varredura barata das linhas e o redesenho acontece só quando algo novo
+    // entra de fato.
+    if (m_catalogue.adoptCodesFromFile(m_doc.distinctCodes()) > 0) {
+        refreshCatalogueViews();
+        return;
+    }
+    rebuildRows();
+    repaint();
+}
+
+void BlockEditor::refreshCatalogueViews()
+{
+    // Refaz as três coisas que dependem do catálogo: a paleta, o combo de
+    // "Aplicar em" e a cor dos chips. Não adota códigos (para não recursar em
+    // quem chamou isto).
+    m_codePanel.rebuild();
+    rebuildCombo();
     rebuildRows();
     repaint();
 }
