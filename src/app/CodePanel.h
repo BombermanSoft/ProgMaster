@@ -96,7 +96,7 @@ private:
         bool m_armed = false;
     };
 
-    void layoutCodes();
+    void updatePagination();
     void updateNavButtons();
     void createCode();
     void removeArmedSessionCode();
@@ -104,7 +104,6 @@ private:
     void armFromButton(CodeButton* button);
     bool overResizeStrip(int y) const;
     int itemsPerPage() const { return m_itemsPerPage; }
-    void clampPage();
     int itemWidth(int index) const;
 
     blocos::CodeCatalogue& m_catalogue;

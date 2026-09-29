@@ -26,6 +26,11 @@
 // código é apenas o identificador gravado no arquivo. Esta etapa NÃO inventa
 // sintaxe: o que não for reconhecido na linha é preservado verbatim.
 //
+// Um horário pode ter VÁRIOS códigos e o MESMO código repetido: no Mapa.txt
+// oficial o COMER aparece cinco vezes na mesma linha, e isso é normal. Não há
+// aqui a restrição de "um por vez" que existe para os PARÂMETROS dos relógios
+// (ver relogio::RelogioDocument::addParam).
+//
 // Fidelidade: linhas que não são horário (em branco, comentários, seções
 // desconhecidas) são guardadas VERBATIM e preservadas na ordem, assim como o
 // separador entre o horário e os códigos e o trecho final da linha.
@@ -70,15 +75,17 @@ public:
     // Devolve o índice da linha criada (-1 se duplicado ou horário inválido).
     int addTime(const std::wstring& hhmm);
 
-    // Adiciona um código ao horário da linha lineIndex. Devolve false (e NÃO
-    // adiciona) se o código já estiver nesse horário.
+    // Adiciona um código ao horário da linha lineIndex, SEM limite de
+    // quantidade: o mesmo código pode ser repetido no mesmo horário (é o que o
+    // Mapa real faz com o COMER). Devolve false (e NÃO adiciona) apenas se o
+    // código for vazio, se a linha não for horário ou se o índice for inválido.
     bool addCode(int lineIndex, const std::wstring& code);
 
     // Remove o código na posição codeIndex do horário.
     void removeCode(int lineIndex, int codeIndex);
 
-    // Substitui TODOS os códigos do horário (copiar/colar entre horários),
-    // sem nunca deixar o mesmo código repetido.
+    // Substitui TODOS os códigos do horário (copiar/colar entre horários)
+    // exatamente pela lista fornecida, incluindo repetições.
     void replaceCodes(int lineIndex, const std::vector<std::wstring>& codes);
 
     // Apaga a LINHA inteira (horário ou crua) do documento.

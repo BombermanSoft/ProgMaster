@@ -153,14 +153,14 @@ CodePanel::CodePanel(blocos::CodeCatalogue& catalogue) : m_catalogue(catalogue)
     m_prevBtn.onClick = [this] {
         if (m_page > 0) {
             --m_page;
-            layoutCodes();
+            resized();
         }
     };
     m_nextBtn.setTooltip(L"Mostrar os próximos códigos.");
     m_nextBtn.onClick = [this] {
         if (m_page + 1 < m_pageCount) {
             ++m_page;
-            layoutCodes();
+            resized();
         }
     };
     addAndMakeVisible(m_prevBtn);
@@ -209,8 +209,10 @@ void CodePanel::rebuild()
         addAndMakeVisible(*raw);
         m_codeButtons.push_back(std::move(button));
     }
-    clampPage();
-    layoutCodes();
+    // resized() (e não updatePagination) para posicionar os botões também
+    // quando o painel ainda não tem largura — sem isso a paleta apareceria
+    // vazia até o próximo clique em "+".
+    resized();
     m_hint.setText(m_catalogue.empty()
                        ? juce::String(L"Nenhum código encontrado na Lista de "
                                       L"Códigos (folders.xml) desta instalação.")
@@ -289,24 +291,18 @@ void CodePanel::setRows(int rows)
         return;
     }
     m_rows = clamped;
-    clampPage();
-    layoutCodes();
+    resized();
     if (onRowsChanged) {
         onRowsChanged(m_rows);
     }
 }
 
-void CodePanel::clampPage()
-{
-    m_pageCount = juce::jmax(1, (static_cast<int>(m_codeButtons.size()) + m_itemsPerPage - 1)
-                                    / juce::jmax(1, m_itemsPerPage));
-    m_page = juce::jlimit(0, m_pageCount - 1, m_page);
-}
-
-void CodePanel::layoutCodes()
+void CodePanel::updatePagination()
 {
     // Calcula quantos códigos cabem em `m_rows` fileiras dentro da largura
     // disponível, e a partir daí quantas páginas o catálogo precisa.
+    // Precisa rodar DE NOVO a cada mudança de largura: na construção o painel
+    // ainda tem largura 0, e sem isto nenhum código apareceria.
     const int avail = getWidth() - 2 * kMargin - kNavW * 2 - kAddW * 2
                       - kGap * 6;
     if (avail <= 0) {
@@ -353,8 +349,6 @@ void CodePanel::layoutCodes()
     }
 
     updateNavButtons();
-    resized();
-    repaint();
 }
 
 void CodePanel::updateNavButtons()
@@ -365,6 +359,9 @@ void CodePanel::updateNavButtons()
 
 void CodePanel::resized()
 {
+    // Recalcula a página a cada mudança de tamanho/posição dos botões.
+    updatePagination();
+
     const int y0 = 2;
     const int right = getWidth() - kMargin;
 
@@ -460,8 +457,7 @@ void CodePanel::mouseDrag(const juce::MouseEvent& event)
     const int clamped = juce::jlimit(1, 8, rows);
     if (clamped != m_rows) {
         m_rows = clamped;
-        clampPage();
-        layoutCodes();
+        resized();
         if (onRowsChanged) {
             onRowsChanged(m_rows);
         }
@@ -495,12 +491,12 @@ bool CodePanel::keyPressed(const juce::KeyPress& key)
     }
     if (key == juce::KeyPress::leftKey && m_page > 0) {
         --m_page;
-        layoutCodes();
+        resized();
         return true;
     }
     if (key == juce::KeyPress::rightKey && m_page + 1 < m_pageCount) {
         ++m_page;
-        layoutCodes();
+        resized();
         return true;
     }
     return false;

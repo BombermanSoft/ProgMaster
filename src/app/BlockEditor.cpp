@@ -1121,23 +1121,17 @@ void BlockEditor::applyCodeToSelected()
     const std::wstring code = m_catalogue.entries()[static_cast<size_t>(comboId - 1)].code;
 
     int applied = 0;
-    int skipped = 0;
     for (const int row : targetRows) {
         const int lineIndex = m_rows[static_cast<size_t>(row)].lineIndex;
         if (m_doc.addCode(lineIndex, code)) {
             ++applied;
             refreshRow(row);
-        } else {
-            ++skipped;
         }
     }
     refreshButtons();
     notifyChanged();
     setStatus(L"Código " + app::jstr(code) + L" aplicado a " +
-              juce::String(applied) + L" horário(s)" +
-              (skipped > 0 ? (L" (" + juce::String(skipped) + L" já tinham)")
-                           : juce::String())
-              + L".");
+              juce::String(applied) + L" horário(s).");
 }
 
 void BlockEditor::copySelected()
@@ -1168,31 +1162,28 @@ void BlockEditor::pasteSelected()
         return;
     }
     int added = 0;
-    int merged = 0;
+    int replaced = 0;
     for (const BlockClip& entry : m_clipboard) {
-        int lineIndex = findTimeLine(entry.time);
+        const int existing = findTimeLine(entry.time);
+        int lineIndex = existing;
         if (lineIndex < 0) {
             lineIndex = m_doc.addTime(entry.time);
-            if (lineIndex >= 0) {
-                ++added;
-            } else {
-                lineIndex = findTimeLine(entry.time);
+            if (lineIndex < 0) {
+                continue;
             }
+            ++added;
+        } else {
+            ++replaced;
         }
-        if (lineIndex < 0) {
-            continue;
-        }
-        for (const std::wstring& code : entry.codes) {
-            if (m_doc.addCode(lineIndex, code)) {
-                ++merged;
-            }
-        }
+        // Os códigos vêm VERBATIM, com repetições: colar a primeira linha do
+        // Mapa real tem de trazer o COMER cinco vezes.
+        m_doc.replaceCodes(lineIndex, entry.codes);
     }
     rebuildRows();
     refreshButtons();
     notifyChanged();
-    setStatus(juce::String(added) + L" horário(s) criado(s), códigos "
-              L"aplicados: " + juce::String(merged) + L".");
+    setStatus(juce::String(added) + L" horário(s) criado(s), " +
+              juce::String(replaced) + L" horário(s) com códigos substituídos.");
 }
 
 } // namespace app

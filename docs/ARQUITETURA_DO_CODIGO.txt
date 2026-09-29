@@ -7,8 +7,8 @@ RESUMO: núcleo em C++ puro (std::wstring + std::filesystem) separado da
 camada de interface JUCE. Toda a regra de formato vive em src/readconf,
 testada sem UI (183 testes). O RELÓGIO da Etapa 3 tem núcleo próprio em
 src/relogio (102 testes) e os BLOCOS da Etapa 4 têm núcleo próprio em
-src/blocos (BlockDocument + CodeCatalogue, 96 testes). A UI (src/app)
-apenas "fonia" os núcleos. Total: 410 testes automatizados.
+src/blocos (BlockDocument + CodeCatalogue, 109 testes). A UI (src/app)
+apenas "fonia" os núcleos. Total: 423 testes automatizados.
 
 -----------------------------------------------------------------------
 1. VISÃO GERAL / CAMADAS
@@ -77,7 +77,10 @@ src/app/JuceHelpers.h.
     horários avulso/preencher, Copiar/Colar)
   - CodePanel               (paleta de CÓDIGOS: botões coloridos, 2
     fileiras por padrão, navegação ‹ ›, altura redimensionável, "+" para
-    código de SESSÃO e lixeira só para códigos de sessão)
+    código de SESSÃO e lixeira só para códigos de sessão). A PAGINAÇÃO é
+    recalculada em resized(), não uma única vez: o painel é construído
+    com largura 0 e só recebe o tamanho real depois, quando o
+    BlockEditor faz setBounds.
   - codeColour(int)         (paleta fixa de 12 cores; a cor vem do índice
     do código no catálogo — a MESMA cor no painel e no chip)
   - BlockClip               (struct horário + códigos do clipboard)
@@ -111,8 +114,14 @@ src/app/JuceHelpers.h.
     o primeiro código, a ordem, os códigos REPETIDOS (o Mapa real repete
     COMER cinco vezes na primeira linha), a vírgula/espaço final e as
     linhas que não são horário. Operações: addCode/removeCode (por
-    ocorrência, sem deduplicar o que já existe), adicionar/remover
-    horário, reschedule, copy/insert, lines()/text().
+    ocorrência), adicionar/remover horário, reschedule, copy/insert,
+    lines()/text().
+    SEM LIMITE DE UM CÓDIGO POR HORÁRIO: addCode aceita o mesmo código
+    várias vezes (só recusa código vazio). A restrição de "um por vez"
+    que existe nos PARÂMETROS dos relógios (RelogioDocument::addParam) NÃO
+    se aplica aqui — são coisas diferentes e os dois modelos mantêm
+    regras opostas de propósito. replaceCodes grava a lista VERBATIM,
+    incluindo repetições.
   - CodeCatalogue          códigos em ordem estável: os lidos do
     folders.xml (via FoldersXml, sempre somente LEITURA) + os de SESSÃO
     criados pelo "+". indexOf/empty/entries; addSessionCode (recusa
@@ -263,9 +272,9 @@ MainWindow            -> PlaylistConfigController (dono),
   -> 0 erros 0 warnings (/W4); ProgMaster.exe em build\ProgMaster_artefacts\Release\
   -> ProgMasterCoreTests.exe 183/183 PASS (build\Release\)
   -> ProgMasterRelogioTests.exe 102/102 PASS (build\Release\)
-  -> ProgMasterBlocosTests.exe 96/96 PASS (build\Release\)
+  -> ProgMasterBlocosTests.exe 109/109 PASS (build\Release\)
   -> ProgMasterPlaylistTests.exe 29/29 PASS (build\Release\)
-  Total: 410/410.
+  Total: 423/423.
 
   Observações: JUCE baixado por FetchContent (GIT_TAG 8.0.15 shallow);
   CMake LANGUAGES C CXX; /utf-8; CRT estática (/MT); targets próprios

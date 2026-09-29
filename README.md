@@ -66,17 +66,24 @@ O menu **Editar** traz os editores **visuais** (Relógio e Blocos) e o menu
   desconhecidos e as linhas que não são horário (comentários, `[SEÇÃO]`, linhas
   em branco);
 - **Painel de Códigos** no topo: os DBFId da Lista de Códigos viram botões
-  **coloridos**, com a mesma cor usada nos chips dentro dos horários. Mostra
-  **duas fileiras** por padrão, tem navegação `‹ ›` quando há mais códigos do
-  que cabe e a altura é **redimensionável** (1 a 8 fileiras);
+  **coloridos** (visíveis logo ao abrir a guia), com a mesma cor usada nos chips
+  dentro dos horários. Mostra **duas fileiras** por padrão, tem navegação `‹ ›`
+  quando há mais códigos do que cabe e a altura é **redimensionável** (1 a 8
+  fileiras);
 - **Código grudado no mouse**: clicar num código o arma; o clique num horário o
   adiciona e ele continua armado (repetir rápido nos vários horários);
 - Botão **`+`** cria um **código de sessão** (só nesta sessão, com borda
   tracejada) e a **lixeira** remove apenas códigos de sessão — o `folders.xml` é
   **sempre somente leitura**;
-- **Aplicar** envia um código a todos os horários selecionados; **Remover**
-  pergunta se apaga os horários inteiros ou só os códigos;
-- **Copiar / Colar** de horários + códigos compartilhado entre os arquivos;
+- **Aplicar** envia um código a todos os horários selecionados. **Não há
+  limite de um código por horário**: o mesmo código pode ser repetido no mesmo
+  horário, como no Mapa real (`COMER` cinco vezes na primeira linha). Essa
+  restrição de "um por vez" continua valendo **apenas para os parâmetros dos
+  relógios** (um `FIXO`, um `ID`, um `DUR` por horário);
+- **Remover** pergunta se apaga os horários inteiros ou só os códigos (o botão
+  direito apaga uma ocorrência por clique);
+- **Copiar / Colar** de horários + códigos compartilhado entre os arquivos
+  (traz a lista de códigos exatamente como está, com as repetições);
 - Alternância **Visual | Texto** sobre o mesmo documento, com rodapé mostrando
   caminho e estado (alterações não salvas, arquivo inexistente).
 
@@ -112,7 +119,7 @@ build\Release\ProgMasterBlocosTests.exe
 build\Release\ProgMasterPlaylistTests.exe
 ```
 
-Estado esperado: 0 erros, 0 warnings (a suíte de testes roda 410/410).
+Estado esperado: 0 erros, 0 warnings (a suíte de testes roda 423/423).
 
 ## Como executar
 
@@ -129,9 +136,11 @@ BOM e `log.txt` UTF-8 com BOM).
 ```
 build\Release\ProgMasterCoreTests.exe       183/183  regras e playlist.ini
 build\Release\ProgMasterRelogioTests.exe   102/102  modelo dos Relógios
-build\Release\ProgMasterBlocosTests.exe     96/96  modelo de Mapas/Grades + catálogo
+build\Release\ProgMasterBlocosTests.exe     109/109  modelo de Mapas/Grades + catálogo
 build\Release\ProgMasterPlaylistTests.exe   29/29  leitor do folders.xml
 ```
+
+Total: 423/423.
 
 Os testes cobrem regras de formato, parse/re-serialização do `.ini`,
 localização de arquivos por escopo, validação de afiliadas, o round-trip exato

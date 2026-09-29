@@ -96,6 +96,25 @@ bool hasCode(const BlockDocument& d, const std::wstring& hhmm,
     return false;
 }
 
+// Quantas vezes um código aparece no horário (o formato real repete códigos:
+// o Mapa oficial traz COMER cinco vezes na primeira linha).
+int occurrences(const BlockDocument& d, const std::wstring& hhmm,
+                const std::wstring& code)
+{
+    const int idx = lineOfTime(d, hhmm);
+    if (idx < 0) {
+        return -1;
+    }
+    int n = 0;
+    for (const std::wstring& c :
+         d.lines()[static_cast<size_t>(idx)].horario.codes) {
+        if (c == code) {
+            ++n;
+        }
+    }
+    return n;
+}
+
 // ============================================================================
 // Formato real (conteúdo copiado de C:\Playlist_oficial\pgm\Mapas\Mapa.txt e
 // ...\Grades\GRADE.txt): horário, espaço, códigos separados por ", " e a linha
@@ -211,6 +230,8 @@ void testLinhasCruasPreservadas()
 }
 
 // Adicionar código mantém o padrão do arquivo (vírgula + espaço ao final).
+// NÃO existe limite de um código por horário: o mesmo código pode ser
+// repetido, como no Mapa real (COMER cinco vezes na primeira linha).
 void testAdicionarCodigo()
 {
     const std::wstring texto = L"00:27 VHAB, COMER, \r\n00:57 VHAB, \r\n";
@@ -220,13 +241,38 @@ void testAdicionarCodigo()
     const int idx = lineOfTime(d, L"00:27");
     CHECK_MSG(idx >= 0, "linha 00:27 encontrada");
     CHECK_MSG(d.addCode(idx, L"INT"), "codigo INT adicionado");
-    CHECK_MSG(!d.addCode(idx, L"INT"), "codigo repetido e recusado");
+    CHECK_MSG(d.addCode(idx, L"INT"), "mesmo codigo pode entrar de novo");
     CHECK_MSG(!d.addCode(idx, L"  "), "codigo vazio e recusado");
-    CHECK_MSG(codeCount(d, L"00:27") == 3, "3 codigos em 00:27");
+    CHECK_MSG(!d.addCode(idx, L""), "codigo ausente e recusado");
+    CHECK_MSG(codeCount(d, L"00:27") == 4, "4 codigos em 00:27");
     CHECK_MSG(hasCode(d, L"00:27", L"INT"), "INT presente");
+    CHECK_MSG(occurrences(d, L"00:27", L"INT") == 2, "INT aparece 2 vezes");
 
     // O arquivo continua terminando a linha com ", ".
-    CHECK_EQ(d.text(), L"00:27 VHAB, COMER, INT, \r\n00:57 VHAB, \r\n");
+    CHECK_EQ(d.text(), L"00:27 VHAB, COMER, INT, INT, \r\n00:57 VHAB, \r\n");
+}
+
+// O formato real repete códigos no mesmo horário; o editor tem de permitir
+// reproduzir isso quantas vezes o usuário quiser.
+void testCodigoRepetidoNoMesmoHorario()
+{
+    const std::wstring real =
+        L"00:27 VHAB, COMER, COMER, COMER, COMER, COMER, VHAB, \r\n";
+    BlockDocument d;
+    d.setText(real);
+    const int idx = lineOfTime(d, L"00:27");
+    CHECK_MSG(idx >= 0, "linha real encontrada");
+    CHECK_MSG(occurrences(d, L"00:27", L"COMER") == 5, "COMER cinco vezes no arquivo");
+    CHECK_MSG(d.addCode(idx, L"COMER"), "mais um COMER aceito");
+    CHECK_MSG(occurrences(d, L"00:27", L"COMER") == 6, "COMER seis vezes");
+    CHECK_EQ(d.text(),
+             L"00:27 VHAB, COMER, COMER, COMER, COMER, COMER, VHAB, COMER, \r\n");
+
+    // E a remoção continua valendo por ocorrência (não apaga todas).
+    // A linha real tem 7 códigos (VHAB + 5xCOMER + VHAB); com o extra são 8.
+    d.removeCode(idx, 2);
+    CHECK_MSG(occurrences(d, L"00:27", L"COMER") == 5, "remove so uma ocorrencia");
+    CHECK_MSG(codeCount(d, L"00:27") == 7, "7 codigos restantes");
 }
 
 void testAdicionarCodigoSemSeparador()
@@ -266,11 +312,21 @@ void testReplaceCodes()
     BlockDocument d;
     d.setText(texto);
     const int idx = lineOfTime(d, L"00:00");
+    // A lista é copiada VERBATIM, com repetições (copiar/colar de uma linha do
+    // Mapa real precisa trazer o COMER cinco vezes).
     d.replaceCodes(idx, { L"COMER", L"NAC", L"COMER" });
-    CHECK_MSG(codeCount(d, L"00:00") == 2, "copia sem repetir codigo");
-    CHECK_MSG(hasCode(d, L"00:00", L"COMER") && hasCode(d, L"00:00", L"NAC"),
-              "codigos copiados");
-    CHECK_EQ(d.text(), L"00:00 COMER, NAC, \r\n");
+    CHECK_MSG(codeCount(d, L"00:00") == 3, "copia mantem os repetidos");
+    CHECK_MSG(occurrences(d, L"00:00", L"COMER") == 2, "COMER copiado duas vezes");
+    CHECK_MSG(hasCode(d, L"00:00", L"NAC"), "NAC copiado");
+    CHECK_EQ(d.text(), L"00:00 COMER, NAC, COMER, \r\n");
+
+    // Linha real do Mapa colada em outro horário: a vírgula final e as repetições
+    // sobrevivem.
+    d.replaceCodes(idx, { L"VHAB", L"COMER", L"COMER", L"COMER", L"COMER",
+                          L"COMER", L"VHAB" });
+    CHECK_MSG(occurrences(d, L"00:00", L"COMER") == 5, "5 COMER");
+    CHECK_MSG(occurrences(d, L"00:00", L"VHAB") == 2, "2 VHAB");
+    CHECK_EQ(d.text(), L"00:00 VHAB, COMER, COMER, COMER, COMER, COMER, VHAB, \r\n");
 }
 
 void testAdicionarHorarioAvulso()
@@ -489,6 +545,7 @@ int main()
     testHorarioSemSeparador();
     testLinhasCruasPreservadas();
     testAdicionarCodigo();
+    testCodigoRepetidoNoMesmoHorario();
     testAdicionarCodigoSemSeparador();
     testRemoverCodigo();
     testReplaceCodes();

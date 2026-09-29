@@ -22,7 +22,7 @@ void trimWs(std::wstring& s)
 }
 
 // Comparação de códigos: a lista do Playlist é MAIÚSCULA, mas o arquivo pode
-// conter variações; a comparação ignora a caixa para não criar duplicatas.
+// conter variações; a comparação ignora a caixa.
 bool codeEquals(const std::wstring& a, const std::wstring& b)
 {
     if (a.size() != b.size()) {
@@ -35,17 +35,6 @@ bool codeEquals(const std::wstring& a, const std::wstring& b)
         }
     }
     return true;
-}
-
-bool containsCode(const std::vector<std::wstring>& codes,
-                  const std::wstring& code)
-{
-    for (const std::wstring& c : codes) {
-        if (codeEquals(c, code)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 } // namespace
@@ -262,9 +251,13 @@ bool BlockDocument::addCode(int lineIndex, const std::wstring& code)
     }
     std::wstring clean = code;
     trimWs(clean);
-    if (clean.empty() || containsCode(l.horario.codes, clean)) {
-        return false; // código vazio ou já presente no horário
+    if (clean.empty()) {
+        return false; // só o código em branco é recusado
     }
+    // O MESMO código pode entrar várias vezes no mesmo horário: é o que os
+    // arquivos reais fazem (no Mapa.txt oficial o COMER aparece cinco vezes na
+    // primeira linha). A restrição de "um por vez" vale para os PARÂMETROS dos
+    // relógios (relogio::RelogioDocument::addParam), não para os códigos.
     Horario& h = l.horario;
     if (h.codes.empty()) {
         // Primeiro código do horário: garante o separador do formato real.
@@ -309,11 +302,14 @@ void BlockDocument::replaceCodes(int lineIndex,
     }
     Horario& h = l.horario;
     h.codes.clear();
+    // A lista é gravada VERBATIM: códigos repetidos fazem parte do formato
+    // real (copiar/colar de uma linha do Mapa tem de trazer o COMER cinco
+    // vezes, não uma).
     for (const std::wstring& c : codes) {
         std::wstring clean = c;
         trimWs(clean);
-        if (clean.empty() || containsCode(h.codes, clean)) {
-            continue; // nunca deixa o mesmo código repetido
+        if (clean.empty()) {
+            continue; // código em branco não entra
         }
         h.codes.push_back(std::move(clean));
     }

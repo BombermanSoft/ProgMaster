@@ -330,11 +330,12 @@ PREPARAÇÃO
        SEMANAL, são as sete sub-abas (MapaSeg..MapaDom / GradeSeg..GradeDom)
        e o conteúdo de cada dia é o do arquivo daquele dia.
 18.3. Painel de Códigos. Os botões coloridos são os DBFId da Lista de
-       Códigos (folders.xml) da instalação. A Lista real tem dezenas de
-       códigos: o painel NÃO tenta mostrar todos de uma vez — aparecem até
-       DUAS fileiras e o contador "1/N" (canto inferior esquerdo) indica a
-       página; os botões ‹ e › mudam de página. O conjunto de códigos
-       permanece completo.
+       Códigos (folders.xml) da instalação. ABRIR A GUIA BLOCOS JÁ COM OS
+       CÓDIGOS VISÍVEIS — não é preciso clicar em "+" para eles
+       aparecerem (foi um bug corrigido: a paleta saía vazia). A Lista real
+       tem dezenas de códigos: aparecem até DUAS fileiras e o contador
+       "1/N" (canto inferior esquerdo) indica a página; os botões ‹ e ›
+       mudam de página. O conjunto de códigos permanece completo.
 18.4. Redimensionar o painel. Arrastar a BORDA INFERIOR do painel para
        cima: o painel CRESCE, ganha mais fileiras (até 8) e os códigos se
        reorganizam; arrastar para baixo encolhe (mínimo 1). A borda fica
@@ -347,6 +348,15 @@ PREPARAÇÃO
        o rodapé volta à mensagem normal.
 18.6. Cores coerentes. O chip de um código dentro do horário tem a MESMA
        cor do botão do mesmo código no painel.
+18.6.1. VÁRIOS CÓDIGOS NO MESMO HORÁRIO. Não há limite de um código por
+       horário: clicar em COMER num horário e depois clicar de novo em
+       COMER (ou em qualquer outro código) deve ADICIONAR OUTRA OCORRÊNCIA,
+       acumulando chips. Botão direito num chip apaga SÓ aquela ocorrência
+       (se há cinco COMER, cada clique apaga um).
+       ESTA REGRA É SÓ DOS BLOCOS: nos RELÓGIOS continua valendo a
+       restrição de um parâmetro por horário (um FIXO, um ID, um DUR) —
+       verificar no item 19.2 que clicar duas vezes no mesmo parâmetro
+       NÃO duplica.
 18.7. Criar um código (botão "+"). Abre o diálogo "Novo código"; digitar
        só letras/números (o espaço é recusado, e o código precisa ser
        novo). O código passa a existir no painel com BORDA TRACEJADA
@@ -403,6 +413,11 @@ ser vazio no início).
        Clicar numa linha adiciona o parâmetro e mantém armado (para
        repetir em outros horários). Cancelar o armado: botão direito,
        ESC, clicar no mesmo chip da paleta.
+       ATENÇÃO: aqui o MESMO parâmetro NÃO pode entrar duas vezes no mesmo
+       horário (é um por horário) — clicar duas vezes no mesmo parâmetro
+       não duplica. Esta limitação é DOS PARÂMETROS e continua valendo
+       (não foi mexida na Etapa 4 — só a regra dos CÓDIGOS dos blocos
+       mudou, item 18.6.1).
 19.3. Remover parâmetro: botão direito em cima de um chip da linha o
        remove. Selecionar linha: clique esquerdo nela.
 19.4. Copiar/Colar: selecionar um horário -> Ctrl+C (ou "Copiar") ->

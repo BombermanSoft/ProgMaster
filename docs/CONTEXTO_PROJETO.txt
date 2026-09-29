@@ -1,8 +1,8 @@
 =======================================================================
 CONTEXTO DO PROJETO — Software Complementar ao Sistema Playlist
 Data: 26/09/2026
-Status: Etapa 4 concluída (build limpo /W4, 410 testes: 183 do núcleo
-        (Etapa 2) + 102 do Relógio (Etapa 3) + 96 dos Blocos e 29 do
+Status: Etapa 4 concluída (build limpo /W4, 423 testes: 183 do núcleo
+        (Etapa 2) + 102 do Relógio (Etapa 3) + 109 dos Blocos e 29 do
         leitor da Lista de Códigos (Etapa 4), app abre); Etapas 2 e 3
         concluídas; testes manuais pendentes (docs\ROTEIRO_DE_TESTES.txt)
 =======================================================================
@@ -211,7 +211,9 @@ B.3. Implementado (Etapa 3)
           do horário selecionado para uma área de transferência
           COMPARTILHADA entre relógios/sub-abas;
         - Clique numa linha seleciona; clique direito num chip o remove;
-        - Modo "Texto" na página: mesmos arquivos no bloco de notas,
+        - clique esquerdo numa linha seleciona; botão direito num chip remove
+          o código daquele horário;
+        - MODOS Visual|Texto na página: mesmos arquivos no bloco de notas,
           sobre o MESMO documento em memória (alternância Visual|Texto
           sem perda); barra de status com caminho/estado;
   [x] Tela provisória "Blocos": Blocos Musicais/Comerciais têm atalho no
@@ -261,7 +263,9 @@ B.4. Implementado (Etapa 4 — 26/09/2026)
           selecionados; "Remover" pergunta Horários ou Códigos;
         - Copiar/Colar (Ctrl+C/Ctrl+V) de horários + códigos entre os
           arquivos (área de transferência compartilhada);
-        - clique direito num chip remove o código daquele horário.
+        - clique direito num chip remove UMA ocorrência daquele código
+          naquele horário (os repetidos do arquivo são distintos: pode
+          haver cinco COMER e cada clique apaga um).
   [x] Guia "Blocos" (src/app/BlockEditorTab) substitui a tela
       provisória: sub-aba por arquivo com a MESMA resolução do editor
       textual (Único = Mapa.txt/Grade.txt; Semanal = MapaSeg..MapaDom /
@@ -269,8 +273,21 @@ B.4. Implementado (Etapa 4 — 26/09/2026)
       sobre o MESMO documento em memória, rodapé com caminho, estado
       ("Alterações não salvas", arquivo inexistente) e
       [Visual][Texto][Descartar][Salvar].
+  [x] Sem limite de UM CÓDIGO POR HORÁRIO: o mesmo código pode ser repetido
+      no mesmo horário (é o que o Mapa real faz — COMER cinco vezes na
+      primeira linha). Essa restrição de "um por vez" continua valendo
+      para os PARÂMETROS dos relógios (relogio::RelogioDocument::addParam:
+      um FIXO, um ID, um DUR por horário) e NÃO foi alterada;
+  [x] Copiar/Colar traz a lista de códigos VERBATIM, com as repetições: colar
+      a primeira linha do Mapa real reproduz os cinco COMER. Em um horário
+      que já existe, "Colar" SUBSTITUI os códigos em vez de somar;
+  [x] CORREÇÃO do painel: a paleta saía VAZIA ao abrir a guia Blocos. A
+      paginação era calculada uma única vez, quando o painel ainda tinha
+      largura 0 (na construção), e só era refeita ao clicar em "+" — daí
+      "só aparecem quando adiciono um código". Agora a página é recalculada
+      em toda mudança de tamanho do painel;
   [x] Salvar/Descartar do menu Arquivo e o aviso de fechamento passou a
-      considerar as páginas de Blocos.
+      considerar as páginas de Blocos;
   [x] CORREÇÃO do leitor da Lista de Códigos (src/playlist/FoldersXml.cpp):
       o arquivo real usa <Folder0>..<Folder15> e NÃO <Folder>; o bloco
       <Shared> (pastas compartilhadas) não é código; e o DBFId vinha
@@ -658,6 +675,35 @@ J.12. Etapa 4 (26/09/2026) — 410 testes verdes:
     Confirma que a codificação e o parser não alteram nada.
   - Build Release limpo /W4 para ProgMaster e os quatro executáveis de
     teste.
+
+J.13. Ajustes pedidos pelo usuário (26/09/2026) — 423 testes verdes:
+  - "Os códigos já registrados não aparecem na lista, só quando adiciono
+    um novo": CAUSA RAIZ = a paginação do CodePanel era calculada uma
+    única vez, dentro do construtor, quando o componente ainda tinha
+    largura 0 (avail <= 0 => zero códigos por página, todos os botões
+    invisíveis). A largura só chegava depois, via setBounds do
+    BlockEditor, e a paginação NÃO era refeita — só voltava a aparecer
+    quando o "+" chamava rebuild(). CORREÇÃO: updatePagination() roda em
+    resized(), ou seja, a cada mudança de tamanho; layoutCodes/clampPage
+    foram eliminados (o próprio resized posiciona tudo).
+  - "Aplicar mais de um código por horário": a restrição estava em
+    BlockDocument::addCode, que recusava um código JÁ PRESENTE no horário.
+    REMOVIDA. O mesmo código pode ser repetido quantas vezes o usuário
+    quiser — é o comportamento do arquivo real (COMER cinco vezes na
+    primeira linha do Mapa.txt). Só o código em branco é recusado.
+  - replaceCodes passou a gravar a lista VERBATIM (antes deduplicava), e o
+    "Colar" do editor substitui os códigos de um horário existente em vez
+    de somar — assim copiar a primeira linha do Mapa real e colar
+    reproduz os cinco COMER.
+  - A regra dos PARÂMETROS dos relógios NÃO foi tocada: relogio::
+    RelogioDocument::addParam continua recusando o mesmo parâmetro duas
+    vezes no mesmo horário (um FIXO, um ID, um DUR por horário), com os
+    102 testes do Relogio intactos.
+  - Testes novos em blocos: testCodigoRepetidoNoMesmoHorario (reproduz a
+    linha real do Mapa, adiciona e remove por ocorrência) e o
+    testAdicionarCodigo/testReplaceCodes reescritos para a nova regra.
+    ProgMasterBlocosTests subiu de 96 para 109 verificações.
+  - Total: 183 + 102 + 109 + 29 = 423/423.
 
 -----------------------------------------------------------------------
 K. PROBLEMAS CONHECIDOS / LIMITAÇÕES
