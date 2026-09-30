@@ -198,6 +198,13 @@ src/app/JuceHelpers.h.
     confiáveis (kMenu* constexpr) e popup sensor _onMenuIndexChanged.
     Etapa 3: menu "Editar" = visual (Programação/Blocos/Relógios),
     "Avançado" = textual (antigo "Editar").
+    ORDEM NOS DOIS MENUS (26/09/2026, a pedido do usuário): blocos
+    (grade musical e mapa comercial) / relógios / programação, com
+    addSeparator() entre cada grupo e a Programação por último — é um item
+    só, então fica depois da divisória que a separa dos relógios. No
+    "Editar" os itens de bloco são "Blocos Musicais/Comerciais" (visual) e
+    no "Avançado" são "Mapa Comercial/Grades Musicais" (textual); a ordem
+    dos dois relógios também difere entre os menus.
   - Abas: juce::TabbedComponent com TabsAtTop; Editor | Configuração |
     Códigos | Relógio | Blocos.
   - Tabelas: juce::TableListBox com ModelColumnSpan; colunas

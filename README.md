@@ -18,7 +18,22 @@ Interface em português, três guias:
   instalação do Playlist.
 
 O menu **Editar** traz os editores **visuais** (Relógio e Blocos) e o menu
-**Avançado** traz a edição **textual** dos mesmos arquivos.
+**Avançado** traz a edição **textual** dos mesmos arquivos. Nos dois menus a
+ordem é a mesma, com uma divisória entre cada grupo:
+
+```
+Editar:      Blocos Musicais / Blocos Comerciais
+             ──────────────────────────────────
+             Relógio Musical / Relógio Comercial
+             ──────────────────────────────────
+             Programação
+
+Avançado:    Mapa Comercial / Grades Musicais
+             ──────────────────────────────────
+             Relógio Comercial / Relógio Musical
+             ──────────────────────────────────
+             Programação
+```
 
 ## Funcionalidades
 

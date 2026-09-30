@@ -744,6 +744,23 @@ J.14. Código do arquivo ausente do folders.xml (26/09/2026) — 446 testes:
     109 para 132 verificações.
   - Total: 183 + 102 + 132 + 29 = 446/446.
 
+J.15. Ordem dos menus Editar e Avançado (26/09/2026):
+  - Pedido: "Programação" por último e uma divisória separando grade
+    musical e mapa comercial dos relógios, e outra separando os relógios
+    da programação.
+  - MainWindow::getMenuForIndex() agora monta os DOIS menus (Editar =
+    visual, Avançado = textual) com a mesma divisão em três grupos:
+      Blocos/Grades ──┬── Relógios ──┬── Programação
+    Cada grupo é separado por addSeparator() e a Programação, que é um
+    item só, fica por último (depois da divisória que a separa dos
+    relógios).
+  - Só a ORDEM e as divisórias mudaram: os ids dos itens, os textos, os
+    destinos e a ordem de despacho em menuItemSelected() ficaram iguais,
+    então nenhuma função de abertura de aba foi tocada.
+  - Sem suíte de GUI, a conferência é o item 2.1/2.2 do
+    docs\ROTEIRO_DE_TESTES.txt (que agora mostra a ordem esperada item a
+    item). Suíte automatizada inalterada: 446/446.
+
 -----------------------------------------------------------------------
 K. PROBLEMAS CONHECIDOS / LIMITAÇÕES
 -----------------------------------------------------------------------

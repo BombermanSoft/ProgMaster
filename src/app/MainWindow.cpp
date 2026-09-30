@@ -149,20 +149,27 @@ juce::PopupMenu MainWindow::getMenuForIndex(int topLevelMenuIndex,
         menu.addItem(IDM_FILE_EXIT, "Sair");
         break;
     case 1: // Editar (Etapa 3 — visual)
-        menu.addItem(IDM_EDIT_PROGRAMACAO, L"Programação");
+        // Ordem: blocos (grade musical e mapa comercial) / relógios /
+        // programação. A Programação é um item só, então fica no fim, depois
+        // da divisória que a separa dos relógios.
         menu.addItem(IDM_EDIT_BLOCOS_MUSICAIS, L"Blocos Musicais");
         menu.addItem(IDM_EDIT_BLOCOS_COMERCIAL, L"Blocos Comerciais");
         menu.addSeparator();
         menu.addItem(IDM_EDIT_RELOGIO_MUSICAL, L"Relógio Musical");
         menu.addItem(IDM_EDIT_RELOGIO_COMERCIAL, L"Relógio Comercial");
+        menu.addSeparator();
+        menu.addItem(IDM_EDIT_PROGRAMACAO, L"Programação");
         break;
     case 2: // Avançado (textual, antigo "Editar")
-        menu.addItem(IDM_ADV_PROGRAMACAO, L"Programação");
+        // Mesma ordem do menu Editar: blocos, relógios e Programação por
+        // último, com uma divisória entre cada grupo.
         menu.addItem(IDM_ADV_MAPA_COMERCIAL, "Mapa Comercial");
         menu.addItem(IDM_ADV_GRADES, "Grades Musicais");
         menu.addSeparator();
         menu.addItem(IDM_ADV_RELOGIO_COMERCIAL, L"Relógio Comercial");
         menu.addItem(IDM_ADV_RELOGIO_MUSICAL, L"Relógio Musical");
+        menu.addSeparator();
+        menu.addItem(IDM_ADV_PROGRAMACAO, L"Programação");
         break;
     default:
         break;

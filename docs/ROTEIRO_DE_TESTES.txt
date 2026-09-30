@@ -63,12 +63,26 @@ PREPARAÇÃO
 -----------------------------------------------------------------------
 2.1. Abrir o menu "Editar" (Etapa 3).
      ESPERADO: as opções são as interfaces SIMPLIFICADAS, sem nomes de
-     arquivo: Programação | Blocos Musicais | Blocos Comerciais |
-     Relógio Musical | Relógio Comercial.
+     arquivo, nesta ordem e com DIVISÓRIAS entre os três grupos:
+       Blocos Musicais
+       Blocos Comerciais
+       ────────────
+       Relógio Musical
+       Relógio Comercial
+       ────────────
+       Programação
+     (a Programação é um item só e fica SEMPRE por último)
 2.2. Abrir o menu "Avançado" (o antigo "Editar" textual).
-     ESPERADO: Programação | Mapa Comercial | Grades Musicais |
-     Relógio Comercial | Relógio Musical (abrem os arquivos no bloco de
-     notas textual, na guia Editor).
+     ESPERADO: a MESMA divisão em três grupos, com Programação por último:
+       Mapa Comercial
+       Grades Musicais
+       ────────────
+       Relógio Comercial
+       Relógio Musical
+       ────────────
+       Programação
+     (os dois primeiros abrem os arquivos no bloco de notas textual, na
+     guia Editor)
 
 -----------------------------------------------------------------------
 3) SUB-ABAS CONFORME A CONFIGURAÇÃO (único x semanal)
